@@ -1,0 +1,121 @@
+name: msupperlimbs
+description: "Upper limbs assessments for umbrella app"
+
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.1.0+3
+
+environment:
+  sdk: ^3.6.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  camera: ^0.11.1
+  cloud_firestore: ^5.6.5
+  cupertino_icons: ^1.0.8
+  device_info_plus: ^11.4.0
+  firebase_auth: ^5.5.1
+  firebase_core: ^3.12.1
+  fl_chart: ^1.0.0
+  flex_color_scheme: ^8.1.0
+  flutter_launcher_icons: ^0.14.3
+  flutter_riverpod: ^2.6.1
+  flutter_localizations:
+    sdk: flutter
+  gallery_saver_plus: ^3.2.4
+  go_router: ^14.8.1
+  google_sign_in: ^6.3.0
+  image: ^4.5.4
+  intl: ^0.20.2
+  package_info_plus: ^8.3.0
+  path_provider: ^2.1.5
+  permission_handler: ^11.3.0
+  rxdart: ^0.27.7
+  sensors_plus: ^6.1.1
+  shared_preferences: ^2.3.3
+
+
+  # To be used in Android development (commit/uncommit it)
+  google_mlkit_commons: ^0.11.0
+  google_mlkit_pose_detection: ^0.14.0
+
+  # To used in IOS development (commit/uncommit it)
+  # google_mlkit_commons: ^0.9.0
+  # google_mlkit_pose_detection: ^0.13.0
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # The "flutter_lints" package below contains a set of recommended lints to
+  # encourage good coding practices. The lint set provided by the package is
+  # activated in the `analysis_options.yaml` file located at the root of your
+  # package. See that file for information about deactivating specific lint
+  # rules and activating additional ones.
+  flutter_lints: ^5.0.0
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+
+  # The following line ensures that the Material Icons font is
+  # included with your application, so that you can use the icons in
+  # the material Icons class.
+  uses-material-design: true
+
+  # To add assets to your application, add an assets section, like this:
+  assets:
+    - assets/logo-light-1024x1024.png
+    - assets/logo-dark-1024x1024.png
+    - assets/images/global/google_icon_color-512x512.png
+
+    # targets
+    - lib/assets/targets/target-1-720x720.png
+    - lib/assets/targets/target-2-720x720.png
+    - lib/assets/targets/target-3-720x720.png
+    - lib/assets/targets/target-4-720x720.png
+    - lib/assets/targets/target-calibration-720x720.png
+    - lib/assets/game_mode/right-hand-enabled-100x100.png
+    - lib/assets/game_mode/right-hand-disabled-100x100.png
+    - lib/assets/game_mode/left-hand-enabled-100x100.png
+    - lib/assets/game_mode/left-hand-disabled-100x100.png
+    
+    # hand positions
+    - lib/assets/positions/hand_position-blue-2400x1080.png
+    - lib/assets/positions/hand_position-green-2400x1080.png
+
+    # fonts
+    - assets/fonts/BebasNeue-Regular.ttf
+
+
+  # An image asset can refer to one or more resolution-specific "variants", see
+  # https://flutter.dev/to/resolution-aware-images
+
+  # For details regarding adding assets from package dependencies, see
+  # https://flutter.dev/to/asset-from-package
+
+  # To add custom fonts to your application, add a fonts section here,
+  # in this "flutter" section. Each entry in this list should have a
+  # "family" key with the font family name, and a "fonts" key with a
+  # list giving the asset and other descriptors for the font. For
+  # example:
+  
+  fonts:
+    - family: BebasNeue
+      fonts:
+        - asset: assets/fonts/BebasNeue-Regular.ttf
+  
+  generate: true
+         
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+  adaptive_icon_background: "assets/icon/app_icon_background.png"
+
