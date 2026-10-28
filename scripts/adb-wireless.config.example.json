@@ -1,0 +1,6 @@
+# Exemplo — o ficheiro real adb-wireless.config.json é gerado pelo script e está no .gitignore
+{
+  "ip": "192.168.86.124",
+  "connectEndpoint": "192.168.86.124:5555",
+  "updatedAt": "2026-01-01T00:00:00"
+}

@@ -1,0 +1,17 @@
+﻿# Env / secrets — nao indexar no Cursor
+.env
+.env.production
+.env.development
+.env.*
+!.env.example
+
+# Python venv / caches
+backend/.venv/
+**/__pycache__/
+**/*.pyc
+**/*.db
+
+# Build artifacts
+**/build/
+**/.dart_tool/
+.fvm/

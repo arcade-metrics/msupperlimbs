@@ -1,0 +1,189 @@
+{
+  "@@locale": "en",
+
+  "common_back": "Back",
+  "common_email": "Email",
+  "common_password": "Password",
+  "common_name": "Name",
+  "common_loading": "Loading...",
+  "common_save": "Save",
+  "common_cancel": "Cancel",
+  "common_retry": "Try again",
+  "common_continue": "Continue",
+  "common_error": "Error: {error}",
+  "@common_error": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "app_title": "MS Upper Limbs Assessment",
+  "app_name": "MS Upper Limbs",
+  "app_versionLabel": "MS Upper Limbs v{version}",
+  "@app_versionLabel": {
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+
+  "auth_login": "Login",
+  "auth_signup": "Sign Up",
+  "auth_createAccount": "Create account",
+  "auth_noAccountQuestion": "Don't have an account? Sign up",
+  "auth_haveAccountQuestion": "Already have an account? Login",
+  "auth_consentCheckbox": "I accept the data use consent",
+  "auth_consentRequired": "Consent is required",
+  "auth_nameRequired": "Enter your name",
+  "auth_emailInvalid": "Invalid email",
+  "auth_passwordMin": "Minimum 6 characters",
+  "auth_loginSuccessful": "Login successful!",
+  "auth_invalidCredentials": "Invalid email or password.",
+  "auth_accountCreatedSuccess": "Account created successfully!",
+  "auth_failedToCreateAccount": "Failed to create account.",
+  "auth_missingToken": "Not authenticated",
+
+  "home_title": "Home",
+  "home_fingerToNoseChallenge": "Finger-to-Nose Challenge",
+  "home_rapidChallenge": "Rapid Challenge",
+  "home_mediapipeDebug": "MediaPipe Debug",
+  "home_changeUser": "Change User",
+  "home_exit": "Exit",
+  "home_noUserLoggedIn": "No user logged in",
+
+  "camera_permissionDenied": "Camera permission denied",
+  "camera_noneAvailable": "No camera available",
+
+  "fnose_intro_title": "Finger-to-Nose",
+  "fnose_intro_errorLoadingSettings": "Error loading settings: {error}",
+  "@fnose_intro_errorLoadingSettings": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "fnose_intro_instructionVideo": "Instruction video",
+  "fnose_intro_notImplemented": "(not implemented yet)",
+  "fnose_intro_hideOnNextTime": "Don't show next time",
+  "fnose_intro_changeGameMode": "Change game mode",
+  "fnose_intro_start": "START",
+  "fnose_intro_settings": "Settings",
+
+  "fnose_mode_title": "Game mode",
+  "fnose_mode_chooseGameMode": "Choose mode",
+  "fnose_mode_leftHandOnly": "Left Hand Only",
+  "fnose_mode_leftHandOnlyDesc": "Touch the nose and target with your left hand",
+  "fnose_mode_rightHandOnly": "Right Hand Only",
+  "fnose_mode_rightHandOnlyDesc": "Touch the nose and target with your right hand",
+  "fnose_mode_bothHands": "Both Hands",
+  "fnose_mode_bothHandsDesc": "Alternate between both hands",
+  "fnose_mode_continue": "Continue",
+
+  "fnose_settings_title": "FNose Settings",
+  "fnose_settings_advancedSettings": "Advanced settings",
+  "fnose_settings_showInstructionVideo": "Show instruction video",
+  "fnose_settings_totalTime": "Total time (s)",
+  "fnose_settings_targetSize": "Target size (×)",
+  "fnose_settings_settingsUpdated": "Settings saved",
+  "fnose_settings_defaultsRestored": "Defaults restored",
+  "fnose_settings_saveError": "Failed to save: {error}",
+  "@fnose_settings_saveError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "restoreDefaults": "Restore defaults",
+
+  "fnose_adv_settings_title": "Advanced Settings",
+  "fnose_adv_settings_updated": "Advanced settings updated",
+  "fnose_adv_section_arm": "Arm tracking",
+  "fnose_adv_section_target": "Target",
+  "fnose_adv_section_position": "Body positioning",
+  "fnose_adv_section_nose": "Nose alignment",
+  "fnose_adv_section_stability": "Device stability",
+
+  "fnose_pregame_keepStill": "Keep the phone still",
+  "fnose_pregame_tiltAndStill": "Tilt the phone (~90°) and keep still",
+  "fnose_pregame_deviceStable": "Device stable — hold…",
+  "fnose_pregame_motionDetected": "Motion detected — stabilize again",
+  "fnose_pregame_positionPose": "Center your torso and nose in the camera",
+  "fnose_pregame_poseDetected": "Pose detected — hold position…",
+  "fnose_pregame_poseLost": "Pose lost — reposition",
+  "fnose_pregame_calibrating": "Calibrating target…",
+  "fnose_pregame_surface": "Keep the device on a stable surface",
+  "fnose_pregame_raiseRight": "Raise the right side",
+  "fnose_pregame_raiseLeft": "Raise the left side",
+  "fnose_pregame_tiltForward": "Tilt further forward",
+  "fnose_pregame_tiltBack": "Tilt further back",
+  "fnose_pregame_rollOk": "Side leveling correct — hold…",
+  "fnose_pregame_pitchOk": "Tilt correct — hold…",
+  "fnose_pregame_alignNose": "Align your nose inside the marker",
+  "fnose_pregame_alignFinger": "Place your index fingertip at the center of the target",
+
+  "fnose_game_saving": "Saving match…",
+
+  "fnose_feedback_title": "FNose Feedback",
+  "fnose_feedback_noResult": "No result",
+  "fnose_feedback_sparksCount": "{count} sparks",
+  "@fnose_feedback_sparksCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "fnose_feedback_summary": "{seconds}s · L {left} · R {right}",
+  "@fnose_feedback_summary": {
+    "placeholders": {
+      "seconds": { "type": "int" },
+      "left": { "type": "int" },
+      "right": { "type": "int" }
+    }
+  },
+  "fnose_feedback_mode": "Mode: {mode}",
+  "@fnose_feedback_mode": {
+    "placeholders": {
+      "mode": { "type": "String" }
+    }
+  },
+  "fnose_feedback_avgAngle": "Avg angle: {angle}°",
+  "@fnose_feedback_avgAngle": {
+    "placeholders": {
+      "angle": { "type": "String" }
+    }
+  },
+  "fnose_feedback_saved": "Saved · match {id}…",
+  "@fnose_feedback_saved": {
+    "placeholders": {
+      "id": { "type": "String" }
+    }
+  },
+  "fnose_feedback_saveFailed": "Failed to save: {error}",
+  "@fnose_feedback_saveFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "fnose_feedback_notSaved": "Not saved",
+  "fnose_feedback_logs": "logs: {touches} touches · {pose} pose",
+  "@fnose_feedback_logs": {
+    "placeholders": {
+      "touches": { "type": "int" },
+      "pose": { "type": "int" }
+    }
+  },
+
+  "fnose_gameover_title": "FNose Game Over",
+  "fnose_gameover_finished": "Match finished",
+  "fnose_gameover_sparksInTime": "{count} sparks in {seconds}s",
+  "@fnose_gameover_sparksInTime": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "seconds": { "type": "int" }
+    }
+  },
+  "fnose_gameover_session": "Session {id}…",
+  "@fnose_gameover_session": {
+    "placeholders": {
+      "id": { "type": "String" }
+    }
+  },
+  "fnose_gameover_playAgain": "Play again",
+  "fnose_gameover_home": "Home"
+}

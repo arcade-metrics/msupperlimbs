@@ -1,57 +1,30 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# Env / secrets
+.env
+.env.production
+.env.development
+.env.*
+!.env.example
 
-# IDEs
-*.iml
-*.ipr
-*.iws
+# Python
+backend/.venv/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/*.db
+backend/**/*.db
+
+# IDE / OS
 .idea/
-# Uncomment if you don't want VSCode settings pushed
-#.vscode/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
 
-# Flutter / Dart / Pub
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-build/
-pubspec.lock
-**/doc/api/
+# Flutter / FVM
+.fvm/
+**/build/
+**/.dart_tool/
+**/Flutter/
+/old
 
-# Flutter generated files
-ios/Flutter/.last_build_id
-ios/Flutter/*.xcconfig
-macos/Flutter/*.xcconfig
-
-# CocoaPods and Xcode
-ios/Pods/
-ios/Podfile.lock
-ios/Runner.xcworkspace/
-ios/build/
-macos/Pods/
-macos/Podfile.lock
-macos/build/
-
-# Android
-android/.gradle/
-android/build/
-android/app/build/
-android/app/.cxx/
-
-# Symbolication and Obfuscation
-app.*.symbols
-app.*.map.json
-
-# Binary artifacts
-*.bin
+# ADB wireless local state
+scripts/adb-wireless.config.json
