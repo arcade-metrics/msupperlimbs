@@ -1,0 +1,189 @@
+{
+  "@@locale": "pt",
+
+  "common_back": "Voltar",
+  "common_email": "E-mail",
+  "common_password": "Senha",
+  "common_name": "Nome",
+  "common_loading": "Carregando...",
+  "common_save": "Guardar",
+  "common_cancel": "Cancelar",
+  "common_retry": "Tentar de novo",
+  "common_continue": "Continuar",
+  "common_error": "Erro: {error}",
+  "@common_error": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "app_title": "Avaliação de Membros Superiores EM",
+  "app_name": "MS Upper Limbs",
+  "app_versionLabel": "MS Upper Limbs v{version}",
+  "@app_versionLabel": {
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+
+  "auth_login": "Entrar",
+  "auth_signup": "Cadastrar",
+  "auth_createAccount": "Criar conta",
+  "auth_noAccountQuestion": "Não tem conta? Criar conta",
+  "auth_haveAccountQuestion": "Já tem conta? Entrar",
+  "auth_consentCheckbox": "Aceito o consentimento de uso dos dados",
+  "auth_consentRequired": "Consentimento é obrigatório",
+  "auth_nameRequired": "Informe o nome",
+  "auth_emailInvalid": "Email inválido",
+  "auth_passwordMin": "Mínimo 6 caracteres",
+  "auth_loginSuccessful": "Login realizado com sucesso!",
+  "auth_invalidCredentials": "E-mail ou senha inválidos.",
+  "auth_accountCreatedSuccess": "Conta criada com sucesso!",
+  "auth_failedToCreateAccount": "Falha ao criar conta.",
+  "auth_missingToken": "Sem token de autenticação",
+
+  "home_title": "Início",
+  "home_fingerToNoseChallenge": "Desafio Dedo-ao-Nariz",
+  "home_rapidChallenge": "Rapid Challenge",
+  "home_mediapipeDebug": "MediaPipe Debug",
+  "home_changeUser": "Trocar Usuário",
+  "home_exit": "Sair",
+  "home_noUserLoggedIn": "Nenhum usuário logado",
+
+  "camera_permissionDenied": "Permissão de câmera negada",
+  "camera_noneAvailable": "Nenhuma câmera disponível",
+
+  "fnose_intro_title": "Dedo-ao-Nariz",
+  "fnose_intro_errorLoadingSettings": "Erro ao carregar settings: {error}",
+  "@fnose_intro_errorLoadingSettings": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "fnose_intro_instructionVideo": "Vídeo de instrução",
+  "fnose_intro_notImplemented": "(ainda não implementado)",
+  "fnose_intro_hideOnNextTime": "Não mostrar da próxima vez",
+  "fnose_intro_changeGameMode": "Alterar modo de jogo",
+  "fnose_intro_start": "START",
+  "fnose_intro_settings": "Settings",
+
+  "fnose_mode_title": "Modo de jogo",
+  "fnose_mode_chooseGameMode": "Escolha o modo",
+  "fnose_mode_leftHandOnly": "Apenas mão esquerda",
+  "fnose_mode_leftHandOnlyDesc": "Toque no nariz e no alvo com a mão esquerda",
+  "fnose_mode_rightHandOnly": "Apenas mão direita",
+  "fnose_mode_rightHandOnlyDesc": "Toque no nariz e no alvo com a mão direita",
+  "fnose_mode_bothHands": "Ambas as mãos",
+  "fnose_mode_bothHandsDesc": "Alterne entre ambas as mãos",
+  "fnose_mode_continue": "Continuar",
+
+  "fnose_settings_title": "FNose Settings",
+  "fnose_settings_advancedSettings": "Configurações avançadas",
+  "fnose_settings_showInstructionVideo": "Mostrar vídeo de instrução",
+  "fnose_settings_totalTime": "Tempo total (s)",
+  "fnose_settings_targetSize": "Tamanho do alvo (×)",
+  "fnose_settings_settingsUpdated": "Settings guardados",
+  "fnose_settings_defaultsRestored": "Defaults restaurados",
+  "fnose_settings_saveError": "Erro ao guardar: {error}",
+  "@fnose_settings_saveError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "restoreDefaults": "Restaurar defaults",
+
+  "fnose_adv_settings_title": "Configurações avançadas",
+  "fnose_adv_settings_updated": "Configurações avançadas atualizadas",
+  "fnose_adv_section_arm": "Tracking do braço",
+  "fnose_adv_section_target": "Alvo",
+  "fnose_adv_section_position": "Posicionamento do corpo",
+  "fnose_adv_section_nose": "Alinhamento do nariz",
+  "fnose_adv_section_stability": "Estabilidade do dispositivo",
+
+  "fnose_pregame_keepStill": "Mantenha o telemóvel estável",
+  "fnose_pregame_tiltAndStill": "Incline o telemóvel (~90°) e mantenha estável",
+  "fnose_pregame_deviceStable": "Dispositivo estável — mantenha…",
+  "fnose_pregame_motionDetected": "Movimento detetado — volte a estabilizar",
+  "fnose_pregame_positionPose": "Posicione o tronco e o nariz no centro da câmara",
+  "fnose_pregame_poseDetected": "Pose detetada — mantenha a posição…",
+  "fnose_pregame_poseLost": "Pose perdida — volte a posicionar",
+  "fnose_pregame_calibrating": "A calibrar alvo…",
+  "fnose_pregame_surface": "Mantenha o dispositivo numa superfície estável",
+  "fnose_pregame_raiseRight": "Suba o lado direito",
+  "fnose_pregame_raiseLeft": "Suba o lado esquerdo",
+  "fnose_pregame_tiltForward": "Incline mais para frente",
+  "fnose_pregame_tiltBack": "Incline mais para trás",
+  "fnose_pregame_rollOk": "Nivelamento lateral correto — mantenha…",
+  "fnose_pregame_pitchOk": "Inclinação correta — mantenha…",
+  "fnose_pregame_alignNose": "Alinhe o nariz dentro da marcação",
+  "fnose_pregame_alignFinger": "Posicione a ponta do dedo indicador no centro do alvo",
+
+  "fnose_game_saving": "A guardar partida…",
+
+  "fnose_feedback_title": "FNose Feedback",
+  "fnose_feedback_noResult": "Sem resultado",
+  "fnose_feedback_sparksCount": "{count} sparks",
+  "@fnose_feedback_sparksCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "fnose_feedback_summary": "{seconds}s · L {left} · R {right}",
+  "@fnose_feedback_summary": {
+    "placeholders": {
+      "seconds": { "type": "int" },
+      "left": { "type": "int" },
+      "right": { "type": "int" }
+    }
+  },
+  "fnose_feedback_mode": "Modo: {mode}",
+  "@fnose_feedback_mode": {
+    "placeholders": {
+      "mode": { "type": "String" }
+    }
+  },
+  "fnose_feedback_avgAngle": "Ângulo médio: {angle}°",
+  "@fnose_feedback_avgAngle": {
+    "placeholders": {
+      "angle": { "type": "String" }
+    }
+  },
+  "fnose_feedback_saved": "Guardado · match {id}…",
+  "@fnose_feedback_saved": {
+    "placeholders": {
+      "id": { "type": "String" }
+    }
+  },
+  "fnose_feedback_saveFailed": "Falha ao guardar: {error}",
+  "@fnose_feedback_saveFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "fnose_feedback_notSaved": "Não guardado",
+  "fnose_feedback_logs": "logs: {touches} touches · {pose} pose",
+  "@fnose_feedback_logs": {
+    "placeholders": {
+      "touches": { "type": "int" },
+      "pose": { "type": "int" }
+    }
+  },
+
+  "fnose_gameover_title": "FNose Game Over",
+  "fnose_gameover_finished": "Partida terminada",
+  "fnose_gameover_sparksInTime": "{count} sparks em {seconds}s",
+  "@fnose_gameover_sparksInTime": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "seconds": { "type": "int" }
+    }
+  },
+  "fnose_gameover_session": "Sessão {id}…",
+  "@fnose_gameover_session": {
+    "placeholders": {
+      "id": { "type": "String" }
+    }
+  },
+  "fnose_gameover_playAgain": "Jogar outra vez",
+  "fnose_gameover_home": "Início"
+}

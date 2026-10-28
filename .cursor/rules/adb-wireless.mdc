@@ -1,0 +1,40 @@
+---
+description: Parear/ligar Android por ADB wireless (script scripts/adb-wireless.ps1)
+alwaysApply: false
+---
+
+# ADB Wireless
+
+Quando o utilizador pedir para **parear**, **ligar ADB wireless**, **conectar o telemóvel**, **scrcpy**, ou frases como:
+- "parear adb"
+- "adb wireless"
+- "ligar o telemóvel"
+- "conectar device wireless"
+- "rode scrcpy" / "espelhar ecrã"
+
+## Acção
+
+1. Usar [`scripts/adb-wireless.ps1`](scripts/adb-wireless.ps1)
+2. O utilizador só precisa do **IP:porta** + **código** do ecrã "Parear com código"
+3. Correr (com espelho):
+
+```powershell
+cd D:\ciatec\projects\msupperlimbs\msupperlimbs
+.\scripts\adb-wireless.ps1 -Pair IP:PORTA -Code CODIGO -Scrcpy
+```
+
+Se já estiver pareado e só quiser espelhar:
+
+```powershell
+.\scripts\adb-wireless.ps1 -Scrcpy
+```
+
+O script descobre a ligação (mDNS), remove duplicados e abre o scrcpy. Só pedir outro IP:porta se o connect falhar.
+
+## Notas
+
+- O código de pareamento **expira** depressa — se falhar, pedir um código novo.
+- Config local (último IP): `scripts/adb-wireless.config.json` (gitignored).
+- `adb` em `%LOCALAPPDATA%\Android\Sdk\platform-tools\`
+- Não inventar portas; usar as do telemóvel.
+- Se faltar scrcpy: `winget install --id Genymobile.scrcpy -e`

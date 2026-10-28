@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: msupperlimbs
+      POSTGRES_PASSWORD: msupperlimbs
+      POSTGRES_DB: msupperlimbs
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U msupperlimbs"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://msupperlimbs:msupperlimbs@db:5432/msupperlimbs
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-long-secret}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
