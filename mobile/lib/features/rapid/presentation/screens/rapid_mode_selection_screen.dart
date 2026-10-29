@@ -42,7 +42,7 @@ class RapidModeSelectionScreen extends ConsumerWidget {
                         if (token == null) return;
                         await ref
                             .read(rapidSettingsRepositoryProvider)
-                            .patchSettings(token, {'game_mode': mode.apiValue});
+                            .patchSettings(token, {'gameMode': mode.apiValue});
                         ref.invalidate(rapidSettingsProvider);
                       },
                     ),

@@ -95,7 +95,6 @@ void main() {
 
     test('fromSettings / factory wire RapidSettings params', () {
       final settings = RapidSettings(
-        userId: 'u',
         showInfoVideo: true,
         totalTime: 30,
         gameMode: 'rightHand',

@@ -1,6 +1,7 @@
+/// Rapid player settings (`/msupperlimbs-rapid/players/{id}/settings`).
 class RapidSettings {
   const RapidSettings({
-    required this.userId,
+    this.presetId,
     required this.showInfoVideo,
     required this.totalTime,
     required this.gameMode,
@@ -27,10 +28,11 @@ class RapidSettings {
     required this.pulseMaxIntensity,
     required this.pulseGravity,
     required this.pulseImpulse,
-    required this.updatedAt,
+    this.updatedAt,
   });
 
-  final String userId;
+  /// Preset the settings were seeded from.
+  final String? presetId;
   final bool showInfoVideo;
   final int totalTime;
   final String gameMode;
@@ -57,69 +59,73 @@ class RapidSettings {
   final double pulseMaxIntensity;
   final double pulseGravity;
   final double pulseImpulse;
-  final DateTime updatedAt;
+  final DateTime? updatedAt;
 
-  factory RapidSettings.fromJson(Map<String, dynamic> json) {
+  /// Parses the API envelope `{presetId, updatedAt, settings: {…}}`.
+  factory RapidSettings.fromApi(Map<String, dynamic> envelope) {
+    final json = envelope['settings'] as Map<String, dynamic>;
+    final updatedAt = envelope['updatedAt'] as String?;
     return RapidSettings(
-      userId: json['user_id'] as String,
-      showInfoVideo: json['show_info_video'] as bool,
-      totalTime: json['total_time'] as int,
-      gameMode: json['game_mode'] as String? ?? 'rightHand',
-      visualizationType: json['visualization_type'] as String? ?? 'line',
-      tapSensitivity: _asDouble(json['tap_sensitivity'], 0.04),
-      tapCooldownMs: json['tap_cooldown_ms'] as int? ?? 110,
-      maxPoints: json['max_points'] as int? ?? 420,
-      minY: _asDouble(json['min_y'], 0),
-      maxY: _asDouble(json['max_y'], 1),
+      presetId: envelope['presetId'] as String?,
+      showInfoVideo: json['showInfoVideo'] as bool? ?? true,
+      totalTime: json['totalTime'] as int? ?? 30,
+      gameMode: json['gameMode'] as String? ?? 'rightHand',
+      visualizationType: json['visualizationType'] as String? ?? 'line',
+      tapSensitivity: _asDouble(json['tapSensitivity'], 0.04),
+      tapCooldownMs: json['tapCooldownMs'] as int? ?? 110,
+      maxPoints: json['maxPoints'] as int? ?? 420,
+      minY: _asDouble(json['minY'], 0),
+      maxY: _asDouble(json['maxY'], 1),
       baseline: _asDouble(json['baseline'], 0.25),
-      gravityPerSecond: _asDouble(json['gravity_per_second'], 0.35),
-      impulseStrength: _asDouble(json['impulse_strength'], 0.06),
-      floorRestitution: _asDouble(json['floor_restitution'], 0),
-      decayRateIdle: _asDouble(json['decay_rate_idle'], 0.05),
-      decayRateActive: _asDouble(json['decay_rate_active'], 0.03),
-      decayRateUnstable: _asDouble(json['decay_rate_unstable'], 0.07),
-      decayRateFlatline: _asDouble(json['decay_rate_flatline'], 0.10),
-      lineColor: json['line_color'] as int?,
-      lineWidth: _asDouble(json['line_width'], 3),
-      glowEnabled: json['glow_enabled'] as bool? ?? true,
-      glowBlurSigma: _asDouble(json['glow_blur_sigma'], 8),
-      useFixedDt: json['use_fixed_dt'] as bool? ?? true,
-      fixedDtSeconds: _asDouble(json['fixed_dt_seconds'], 1 / 30),
-      pulseMaxIntensity: _asDouble(json['pulse_max_intensity'], 0.6),
-      pulseGravity: _asDouble(json['pulse_gravity'], 0.003),
-      pulseImpulse: _asDouble(json['pulse_impulse'], 0.16),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      gravityPerSecond: _asDouble(json['gravityPerSecond'], 0.35),
+      impulseStrength: _asDouble(json['impulseStrength'], 0.06),
+      floorRestitution: _asDouble(json['floorRestitution'], 0),
+      decayRateIdle: _asDouble(json['decayRateIdle'], 0.05),
+      decayRateActive: _asDouble(json['decayRateActive'], 0.03),
+      decayRateUnstable: _asDouble(json['decayRateUnstable'], 0.07),
+      decayRateFlatline: _asDouble(json['decayRateFlatline'], 0.10),
+      lineColor: json['lineColor'] as int?,
+      lineWidth: _asDouble(json['lineWidth'], 3),
+      glowEnabled: json['glowEnabled'] as bool? ?? true,
+      glowBlurSigma: _asDouble(json['glowBlurSigma'], 8),
+      useFixedDt: json['useFixedDt'] as bool? ?? true,
+      fixedDtSeconds: _asDouble(json['fixedDtSeconds'], 1 / 30),
+      pulseMaxIntensity: _asDouble(json['pulseMaxIntensity'], 0.6),
+      pulseGravity: _asDouble(json['pulseGravity'], 0.003),
+      pulseImpulse: _asDouble(json['pulseImpulse'], 0.16),
+      updatedAt: updatedAt == null ? null : DateTime.parse(updatedAt),
     );
   }
 
+  /// Every field, camelCase, as `PATCH …/settings` accepts it.
   Map<String, dynamic> toUpdateJson() {
     return {
-      'show_info_video': showInfoVideo,
-      'total_time': totalTime,
-      'game_mode': gameMode,
-      'visualization_type': visualizationType,
-      'tap_sensitivity': tapSensitivity,
-      'tap_cooldown_ms': tapCooldownMs,
-      'max_points': maxPoints,
-      'min_y': minY,
-      'max_y': maxY,
+      'showInfoVideo': showInfoVideo,
+      'totalTime': totalTime,
+      'gameMode': gameMode,
+      'visualizationType': visualizationType,
+      'tapSensitivity': tapSensitivity,
+      'tapCooldownMs': tapCooldownMs,
+      'maxPoints': maxPoints,
+      'minY': minY,
+      'maxY': maxY,
       'baseline': baseline,
-      'gravity_per_second': gravityPerSecond,
-      'impulse_strength': impulseStrength,
-      'floor_restitution': floorRestitution,
-      'decay_rate_idle': decayRateIdle,
-      'decay_rate_active': decayRateActive,
-      'decay_rate_unstable': decayRateUnstable,
-      'decay_rate_flatline': decayRateFlatline,
-      'line_color': lineColor,
-      'line_width': lineWidth,
-      'glow_enabled': glowEnabled,
-      'glow_blur_sigma': glowBlurSigma,
-      'use_fixed_dt': useFixedDt,
-      'fixed_dt_seconds': fixedDtSeconds,
-      'pulse_max_intensity': pulseMaxIntensity,
-      'pulse_gravity': pulseGravity,
-      'pulse_impulse': pulseImpulse,
+      'gravityPerSecond': gravityPerSecond,
+      'impulseStrength': impulseStrength,
+      'floorRestitution': floorRestitution,
+      'decayRateIdle': decayRateIdle,
+      'decayRateActive': decayRateActive,
+      'decayRateUnstable': decayRateUnstable,
+      'decayRateFlatline': decayRateFlatline,
+      'lineColor': lineColor,
+      'lineWidth': lineWidth,
+      'glowEnabled': glowEnabled,
+      'glowBlurSigma': glowBlurSigma,
+      'useFixedDt': useFixedDt,
+      'fixedDtSeconds': fixedDtSeconds,
+      'pulseMaxIntensity': pulseMaxIntensity,
+      'pulseGravity': pulseGravity,
+      'pulseImpulse': pulseImpulse,
     };
   }
 
@@ -152,7 +158,7 @@ class RapidSettings {
     double? pulseImpulse,
   }) {
     return RapidSettings(
-      userId: userId,
+      presetId: presetId,
       showInfoVideo: showInfoVideo ?? this.showInfoVideo,
       totalTime: totalTime ?? this.totalTime,
       gameMode: gameMode ?? this.gameMode,

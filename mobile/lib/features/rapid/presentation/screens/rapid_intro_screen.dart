@@ -78,7 +78,7 @@ class RapidIntroScreen extends ConsumerWidget {
                         if (token == null) return;
                         await ref
                             .read(rapidSettingsRepositoryProvider)
-                            .patchSettings(token, {'show_info_video': !value});
+                            .patchSettings(token, {'showInfoVideo': !value});
                         ref.invalidate(rapidSettingsProvider);
                       },
                     ),

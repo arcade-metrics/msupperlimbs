@@ -82,7 +82,9 @@ class _FnoseAdvSettingsScreenState
           .read(fnoseSettingsRepositoryProvider)
           .restoreAdvDefaults(token);
       setState(() => _resetControllers(restored));
-      ref.invalidate(fnoseAdvSettingsProvider);
+      ref
+        ..invalidate(fnoseAdvSettingsProvider)
+        ..invalidate(fnoseSettingsProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.fnose_settings_defaultsRestored)),

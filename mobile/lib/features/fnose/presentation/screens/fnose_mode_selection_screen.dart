@@ -47,7 +47,7 @@ class FnoseModeSelectionScreen extends ConsumerWidget {
                         if (token == null) return;
                         await ref
                             .read(fnoseSettingsRepositoryProvider)
-                            .patchSettings(token, {'game_mode': mode.apiValue});
+                            .patchSettings(token, {'gameMode': mode.apiValue});
                         ref.invalidate(fnoseSettingsProvider);
                       },
                     ),

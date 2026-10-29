@@ -440,18 +440,6 @@ abstract class AppLocalizations {
   /// **'Touch the nose and target with your right hand'**
   String get fnose_mode_rightHandOnlyDesc;
 
-  /// No description provided for @fnose_mode_bothHands.
-  ///
-  /// In en, this message translates to:
-  /// **'Both Hands'**
-  String get fnose_mode_bothHands;
-
-  /// No description provided for @fnose_mode_bothHandsDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Alternate between both hands'**
-  String get fnose_mode_bothHandsDesc;
-
   /// No description provided for @fnose_mode_continue.
   ///
   /// In en, this message translates to:

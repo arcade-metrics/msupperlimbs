@@ -79,7 +79,6 @@ void main() {
 
   group('FnoseGameEngine', () {
     FnoseSettings settings() => FnoseSettings(
-      userId: 'u',
       gameMode: 'leftHand',
       showInfoVideo: true,
       totalTime: 5,
@@ -88,7 +87,6 @@ void main() {
     );
 
     FnoseAdvSettings adv() => FnoseAdvSettings(
-      userId: 'u',
       data: {
         'required_stable_time_ms': 100,
         'stability_grace_ms': 200,
@@ -418,15 +416,6 @@ void main() {
       expect(result.durationMs, 5000);
       expectNoEpoch(pregame);
       expectNoEpoch(result.toMatchPayload(deviceModel: 'test'));
-    });
-
-    test('legacy bothHands setting falls back to leftHand', () {
-      final engine = FnoseGameEngine(
-        settings: settings().copyWith(gameMode: 'bothHands'),
-        adv: adv(),
-        clock: clock(),
-      );
-      expect(engine.settings.gameMode, 'leftHand');
     });
   });
 }
