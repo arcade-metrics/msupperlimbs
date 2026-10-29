@@ -240,14 +240,9 @@ class RapidGameEngine {
       byHand.putIfAbsent(p.handIndex ?? 0, () => []).add(p);
     }
 
-    final mode = _settings.gameMode;
     final entries = byHand.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
-
-    Iterable<MapEntry<int, List<LandmarkPoint>>> selected = entries;
-    if (mode != 'bothHands' && entries.isNotEmpty) {
-      selected = [entries.first];
-    }
+    final selected = entries.take(1);
 
     for (final entry in selected) {
       final before = _pulse.currentY;

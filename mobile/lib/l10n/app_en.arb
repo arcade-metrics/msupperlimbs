@@ -79,8 +79,6 @@
   "fnose_mode_leftHandOnlyDesc": "Touch the nose and target with your left hand",
   "fnose_mode_rightHandOnly": "Right Hand Only",
   "fnose_mode_rightHandOnlyDesc": "Touch the nose and target with your right hand",
-  "fnose_mode_bothHands": "Both Hands",
-  "fnose_mode_bothHandsDesc": "Alternate between both hands",
   "fnose_mode_continue": "Continue",
 
   "fnose_settings_title": "FNose Settings",

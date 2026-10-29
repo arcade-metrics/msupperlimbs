@@ -105,6 +105,22 @@ class ApiClient {
     return _decode(response);
   }
 
+  Future<Map<String, dynamic>> patchJson(
+    String path, {
+    required String accessToken,
+    required Map<String, dynamic> body,
+  }) async {
+    final response = await _authed(
+      accessToken,
+      (auth) => _client.patch(
+        _uri(path),
+        headers: {...auth, ..._json},
+        body: jsonEncode(body),
+      ),
+    );
+    return _decode(response);
+  }
+
   Future<Map<String, dynamic>> postJson(
     String path, {
     required String accessToken,

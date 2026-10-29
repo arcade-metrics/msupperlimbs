@@ -193,12 +193,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Touch the nose and target with your right hand';
 
   @override
-  String get fnose_mode_bothHands => 'Both Hands';
-
-  @override
-  String get fnose_mode_bothHandsDesc => 'Alternate between both hands';
-
-  @override
   String get fnose_mode_continue => 'Continue';
 
   @override

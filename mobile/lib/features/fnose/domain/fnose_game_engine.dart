@@ -16,9 +16,7 @@ class FnoseGameEngine {
     required SessionClock clock,
     this.poseSampleEveryNFrames = 1,
     this._onChanged,
-  }) : _settings = settings.gameMode == 'bothHands'
-           ? settings.copyWith(gameMode: 'leftHand')
-           : settings,
+  }) : _settings = settings,
        _adv = adv,
        _clock = clock,
        telemetry = PregameTelemetryBuffer(clock: clock),
@@ -525,9 +523,8 @@ class FnoseGameEngine {
   }
 
   void _processArms(Map<int, LandmarkPoint> byIndex, DateTime now) {
-    final mode = _settings.gameMode;
-    final leftActive = mode == 'leftHand' || mode == 'bothHands';
-    final rightActive = mode == 'rightHand' || mode == 'bothHands';
+    final leftActive = _settings.gameMode != 'rightHand';
+    final rightActive = !leftActive;
 
     if (leftActive) {
       _tickArm(isLeft: true, byIndex: byIndex, tracker: _left, now: now);

@@ -191,3 +191,11 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
     ref.watch(secureStorageProvider),
   );
 });
+
+/// Id of the logged-in user, for routes scoped to the caller
+/// (`/{slug}/players/{user_id}/…`).
+String currentUserId(Ref ref) {
+  final id = ref.read(authProvider).user?.id;
+  if (id == null) throw StateError('Not authenticated');
+  return id;
+}

@@ -9,7 +9,6 @@ import '../../support/no_epoch.dart';
 
 RapidSettings _settings({int totalTime = 5}) {
   return RapidSettings(
-    userId: 'u',
     showInfoVideo: false,
     totalTime: totalTime,
     gameMode: 'rightHand',

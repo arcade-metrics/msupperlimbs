@@ -7,7 +7,10 @@ import 'package:msupperlimbs/features/rapid/data/rapid_settings_repository.dart'
 final rapidSettingsRepositoryProvider = Provider<RapidSettingsRepository>((
   ref,
 ) {
-  return RapidSettingsRepository(ref.watch(apiClientProvider));
+  return RapidSettingsRepository(
+    ref.watch(apiClientProvider),
+    () => currentUserId(ref),
+  );
 });
 
 final rapidSettingsProvider = FutureProvider<RapidSettings>((ref) async {

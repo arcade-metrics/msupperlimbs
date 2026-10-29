@@ -8,7 +8,10 @@ import 'package:msupperlimbs/features/fnose/data/models/fnose_settings.dart';
 final fnoseSettingsRepositoryProvider = Provider<FnoseSettingsRepository>((
   ref,
 ) {
-  return FnoseSettingsRepository(ref.watch(apiClientProvider));
+  return FnoseSettingsRepository(
+    ref.watch(apiClientProvider),
+    () => currentUserId(ref),
+  );
 });
 
 final fnosePregameRepositoryProvider = Provider<FnosePregameRepository>((ref) {

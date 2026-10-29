@@ -1,36 +1,40 @@
+/// FNose basic settings: the four top-level fields of
+/// `/msupperlimbs-fnose/players/{id}/settings`.
 class FnoseSettings {
   const FnoseSettings({
-    required this.userId,
+    this.presetId,
     required this.gameMode,
     required this.showInfoVideo,
     required this.totalTime,
     required this.targetSize,
-    required this.updatedAt,
+    this.updatedAt,
   });
 
-  final String userId;
+  final String? presetId;
   final String gameMode;
   final bool showInfoVideo;
   final int totalTime;
   final double targetSize;
-  final DateTime updatedAt;
+  final DateTime? updatedAt;
 
-  factory FnoseSettings.fromJson(Map<String, dynamic> json) {
+  /// Parses the API envelope `{presetId, updatedAt, settings: {…}}`.
+  factory FnoseSettings.fromApi(Map<String, dynamic> envelope) {
+    final json = envelope['settings'] as Map<String, dynamic>;
     return FnoseSettings(
-      userId: json['user_id'] as String,
-      gameMode: json['game_mode'] as String? ?? 'leftHand',
-      showInfoVideo: json['show_info_video'] as bool? ?? true,
-      totalTime: json['total_time'] as int? ?? 60,
-      targetSize: (json['target_size'] as num?)?.toDouble() ?? 1.0,
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      presetId: envelope['presetId'] as String?,
+      gameMode: json['gameMode'] as String? ?? 'leftHand',
+      showInfoVideo: json['showInfoVideo'] as bool? ?? true,
+      totalTime: json['totalTime'] as int? ?? 60,
+      targetSize: (json['targetSize'] as num?)?.toDouble() ?? 1.0,
+      updatedAt: _parseDate(envelope['updatedAt']),
     );
   }
 
   Map<String, dynamic> toUpdateJson() => {
-    'game_mode': gameMode,
-    'show_info_video': showInfoVideo,
-    'total_time': totalTime,
-    'target_size': targetSize,
+    'gameMode': gameMode,
+    'showInfoVideo': showInfoVideo,
+    'totalTime': totalTime,
+    'targetSize': targetSize,
   };
 
   FnoseSettings copyWith({
@@ -40,7 +44,7 @@ class FnoseSettings {
     double? targetSize,
   }) {
     return FnoseSettings(
-      userId: userId,
+      presetId: presetId,
       gameMode: gameMode ?? this.gameMode,
       showInfoVideo: showInfoVideo ?? this.showInfoVideo,
       totalTime: totalTime ?? this.totalTime,
@@ -50,24 +54,32 @@ class FnoseSettings {
   }
 }
 
+/// FNose advanced settings (`settings.advanced` in the API).
+///
+/// [data] keeps the app's snake_case keys (`required_stable_time_ms`), which
+/// the engine and the catalog use; the API speaks camelCase and the
+/// conversion happens only in [fromApi] and [toApiJson].
 class FnoseAdvSettings {
-  const FnoseAdvSettings({
-    required this.userId,
-    required this.data,
-    required this.updatedAt,
-  });
+  const FnoseAdvSettings({this.presetId, required this.data, this.updatedAt});
 
-  final String userId;
+  final String? presetId;
   final Map<String, dynamic> data;
-  final DateTime updatedAt;
+  final DateTime? updatedAt;
 
-  factory FnoseAdvSettings.fromJson(Map<String, dynamic> json) {
+  factory FnoseAdvSettings.fromApi(Map<String, dynamic> envelope) {
+    final settings = envelope['settings'] as Map<String, dynamic>;
+    final advanced = settings['advanced'] as Map<String, dynamic>? ?? {};
     return FnoseAdvSettings(
-      userId: json['user_id'] as String,
-      data: Map<String, dynamic>.from(json['data'] as Map? ?? {}),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      presetId: envelope['presetId'] as String?,
+      data: {for (final e in advanced.entries) camelToSnake(e.key): e.value},
+      updatedAt: _parseDate(envelope['updatedAt']),
     );
   }
+
+  /// `{advanced: {…}}` for `PATCH …/settings`.
+  Map<String, dynamic> toApiJson() => {
+    'advanced': {for (final e in data.entries) snakeToCamel(e.key): e.value},
+  };
 
   double d(String key, double fallback) =>
       (data[key] as num?)?.toDouble() ?? fallback;
@@ -76,7 +88,7 @@ class FnoseAdvSettings {
 
   FnoseAdvSettings copyWithData(Map<String, dynamic> data) {
     return FnoseAdvSettings(
-      userId: userId,
+      presetId: presetId,
       data: Map<String, dynamic>.from(data),
       updatedAt: DateTime.now().toUtc(),
     );
@@ -88,3 +100,12 @@ class FnoseAdvSettings {
     return copyWithData(next);
   }
 }
+
+String camelToSnake(String key) =>
+    key.replaceAllMapped(RegExp('[A-Z]'), (m) => '_${m[0]!.toLowerCase()}');
+
+String snakeToCamel(String key) =>
+    key.replaceAllMapped(RegExp('_([a-z0-9])'), (m) => m[1]!.toUpperCase());
+
+DateTime? _parseDate(Object? value) =>
+    value is String ? DateTime.parse(value) : null;

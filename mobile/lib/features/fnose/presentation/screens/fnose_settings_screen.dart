@@ -80,7 +80,9 @@ class _FnoseSettingsScreenState extends ConsumerState<FnoseSettingsScreen> {
         _draft = null;
         _ensureDraft(restored);
       });
-      ref.invalidate(fnoseSettingsProvider);
+      ref
+        ..invalidate(fnoseSettingsProvider)
+        ..invalidate(fnoseAdvSettingsProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.fnose_settings_defaultsRestored)),
