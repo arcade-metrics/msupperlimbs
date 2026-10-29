@@ -22,13 +22,15 @@ class AuthState {
   final AuthStatus status;
   final AuthUser? user;
   final String? accessToken;
-  final String? error;
+
+  /// Last login/register failure; shown with `apiErrorMessage`.
+  final Object? error;
 
   AuthState copyWith({
     AuthStatus? status,
     AuthUser? user,
     String? accessToken,
-    String? error,
+    Object? error,
     bool clearError = false,
   }) {
     return AuthState(
@@ -82,10 +84,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         accessToken: session.tokens.accessToken,
       );
     } catch (e) {
-      state = state.copyWith(
-        status: AuthStatus.unauthenticated,
-        error: e.toString(),
-      );
+      state = state.copyWith(status: AuthStatus.unauthenticated, error: e);
     }
   }
 
@@ -93,7 +92,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String email,
     required String password,
     required String name,
-    required bool consent,
   }) async {
     state = state.copyWith(clearError: true);
     try {
@@ -101,7 +99,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: email,
         password: password,
         name: name,
-        consent: consent,
       );
       await _persist(session);
       state = AuthState(
@@ -110,16 +107,23 @@ class AuthNotifier extends StateNotifier<AuthState> {
         accessToken: session.tokens.accessToken,
       );
     } catch (e) {
-      state = state.copyWith(
-        status: AuthStatus.unauthenticated,
-        error: e.toString(),
-      );
+      state = state.copyWith(status: AuthStatus.unauthenticated, error: e);
     }
   }
 
   Future<void> logout() async {
-    await _clearTokens();
-    state = const AuthState(status: AuthStatus.unauthenticated);
+    final accessToken = state.accessToken;
+    final refreshToken = await _storage.read(key: _refreshKey);
+    try {
+      if (accessToken != null && refreshToken != null) {
+        await _api.logout(accessToken: accessToken, refreshToken: refreshToken);
+      }
+    } catch (_) {
+      // The local session ends even if the server could not be reached.
+    } finally {
+      await _clearTokens();
+      state = const AuthState(status: AuthStatus.unauthenticated);
+    }
   }
 
   Future<void> _persist(AuthSession session) async {

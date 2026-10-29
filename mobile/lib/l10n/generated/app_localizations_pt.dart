@@ -67,19 +67,21 @@ class AppLocalizationsPt extends AppLocalizations {
   String get auth_haveAccountQuestion => 'Já tem conta? Entrar';
 
   @override
-  String get auth_consentCheckbox => 'Aceito o consentimento de uso dos dados';
-
-  @override
-  String get auth_consentRequired => 'Consentimento é obrigatório';
-
-  @override
   String get auth_nameRequired => 'Informe o nome';
 
   @override
   String get auth_emailInvalid => 'Email inválido';
 
   @override
-  String get auth_passwordMin => 'Mínimo 6 caracteres';
+  String get auth_passwordRequired => 'Informe a senha';
+
+  @override
+  String get auth_passwordPolicy =>
+      'Mínimo 8 caracteres, com 1 letra maiúscula e 1 número';
+
+  @override
+  String get auth_emailInUse =>
+      'Este e-mail já está cadastrado. Entre com ele.';
 
   @override
   String get auth_loginSuccessful => 'Login realizado com sucesso!';
@@ -95,6 +97,27 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get auth_missingToken => 'Sem token de autenticação';
+
+  @override
+  String get error_validation =>
+      'Há campos inválidos. Confira e tente de novo.';
+
+  @override
+  String get error_sessionExpired => 'A sessão expirou. Entre de novo.';
+
+  @override
+  String get error_accountInactive => 'Esta conta está inativa.';
+
+  @override
+  String get error_network =>
+      'Sem conexão com o servidor. Verifique a internet e tente de novo.';
+
+  @override
+  String get error_server =>
+      'O servidor está indisponível. Tente de novo em instantes.';
+
+  @override
+  String get error_generic => 'Algo deu errado. Tente de novo.';
 
   @override
   String get home_title => 'Início';
