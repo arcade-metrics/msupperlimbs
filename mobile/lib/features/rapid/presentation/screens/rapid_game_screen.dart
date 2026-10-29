@@ -5,13 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:msupperlimbs/core/network/api_error_messages.dart';
 import 'package:msupperlimbs/features/auth/application/auth_notifier.dart';
+import 'package:msupperlimbs/features/match/application/match_providers.dart';
+import 'package:msupperlimbs/features/match/domain/match_context.dart';
 import 'package:msupperlimbs/features/motion/data/camera_frame_converter.dart';
 import 'package:msupperlimbs/features/motion/data/mediapipe_service.dart';
 import 'package:msupperlimbs/features/motion/domain/landmark_point.dart';
 import 'package:msupperlimbs/features/motion/domain/screen_mapper.dart';
 import 'package:msupperlimbs/features/motion/domain/session_clock.dart';
 import 'package:msupperlimbs/features/motion/presentation/widgets/landmark_debug_painter.dart';
+import 'package:msupperlimbs/features/rapid/application/rapid_match_flow.dart';
 import 'package:msupperlimbs/features/rapid/application/rapid_settings_providers.dart';
 import 'package:msupperlimbs/features/rapid/data/models/rapid_settings.dart';
 import 'package:msupperlimbs/features/rapid/domain/rapid_game_engine.dart';
@@ -19,6 +23,7 @@ import 'package:msupperlimbs/features/rapid/domain/rapid_game_phase.dart';
 import 'package:msupperlimbs/features/rapid/presentation/widgets/pulse_visualization.dart';
 import 'package:msupperlimbs/features/rapid/presentation/widgets/rapid_countdown_overlay.dart';
 import 'package:msupperlimbs/features/rapid/presentation/widgets/rapid_pregame_overlay.dart';
+import 'package:msupperlimbs/l10n/generated/app_localizations.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class RapidGameScreen extends ConsumerStatefulWidget {
@@ -32,6 +37,7 @@ class _RapidGameScreenState extends ConsumerState<RapidGameScreen> {
   final _mediaPipe = MediaPipeService();
   final _clock = SessionClock();
   final _previewKey = GlobalKey();
+  late final RapidMatchFlow _flow;
   CameraController? _controller;
   RapidGameEngine? _engine;
   Timer? _secondTimer;
@@ -49,6 +55,8 @@ class _RapidGameScreenState extends ConsumerState<RapidGameScreen> {
   @override
   void initState() {
     super.initState();
+    final auth = ref.read(authProvider.notifier);
+    _flow = RapidMatchFlow(ref.read(matchApiProvider), () => auth.accessToken);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     SystemChrome.setPreferredOrientations(const [
       DeviceOrientation.landscapeLeft,
@@ -202,6 +210,7 @@ class _RapidGameScreenState extends ConsumerState<RapidGameScreen> {
     final engine = _engine;
     if (engine == null) return;
     engine.onCountdownFinished();
+    _flow.start(_matchContext(engine));
     _secondTimer?.cancel();
     _physicsTimer?.cancel();
     _secondTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -230,27 +239,12 @@ class _RapidGameScreenState extends ConsumerState<RapidGameScreen> {
     engine.screenWidth = size.width.round();
     engine.screenHeight = size.height.round();
 
+    final l10n = AppLocalizations.of(context);
     var result = engine.result;
-    final token = ref.read(authProvider).accessToken;
-    if (token != null) {
-      try {
-        final saved = await ref
-            .read(rapidMatchRepositoryProvider)
-            .saveMatch(
-              accessToken: token,
-              result: result,
-              deviceModel: _controller?.description.name,
-            );
-        result = result.copyWith(
-          matchId: saved.id,
-          sessionId: saved.sessionId,
-          clearSaveError: true,
-        );
-      } catch (e) {
-        result = result.copyWith(saveError: e.toString());
-      }
-    } else {
-      result = result.copyWith(saveError: 'Sem token de autenticação');
+    try {
+      result = await _flow.complete(result, _matchContext(engine));
+    } catch (e) {
+      result = result.copyWith(saveError: apiErrorMessage(l10n, e));
     }
 
     if (!mounted) return;
@@ -258,8 +252,24 @@ class _RapidGameScreenState extends ConsumerState<RapidGameScreen> {
     context.go('/rapid-feedback', extra: result);
   }
 
+  Map<String, dynamic> _matchContext(RapidGameEngine engine) =>
+      buildMatchContext(
+        screenWidth: engine.screenWidth,
+        screenHeight: engine.screenHeight,
+        imageWidth: engine.imageWidth,
+        imageHeight: engine.imageHeight,
+        cameraLens: _controller?.description.lensDirection.name,
+        preview: engine.preview,
+      );
+
   @override
   void dispose() {
+    final engine = _engine;
+    if (engine != null && engine.phase == RapidGamePhase.playing) {
+      unawaited(
+        _flow.cancel(score: engine.tapCount, durationMs: engine.playedMs),
+      );
+    }
     _secondTimer?.cancel();
     _physicsTimer?.cancel();
     final controller = _controller;

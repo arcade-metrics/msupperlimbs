@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:msupperlimbs/features/auth/application/auth_notifier.dart';
 import 'package:msupperlimbs/features/rapid/data/models/rapid_settings.dart';
-import 'package:msupperlimbs/features/rapid/data/rapid_match_repository.dart';
 import 'package:msupperlimbs/features/rapid/data/rapid_settings_repository.dart';
 
 final rapidSettingsRepositoryProvider = Provider<RapidSettingsRepository>((
@@ -23,7 +22,3 @@ final rapidSettingsProvider = FutureProvider<RapidSettings>((ref) async {
 });
 
 final rapidSettingsDraftProvider = StateProvider<RapidSettings?>((ref) => null);
-
-final rapidMatchRepositoryProvider = Provider<RapidMatchRepository>((ref) {
-  return RapidMatchRepository(ref.watch(apiClientProvider));
-});

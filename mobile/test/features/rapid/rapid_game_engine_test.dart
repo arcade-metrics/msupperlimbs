@@ -157,9 +157,15 @@ void main() {
     expect(result.phaseEvents.first, isNot(contains('fromPhase')));
     expect(result.durationMs, 2000);
 
-    final payload = result.toMatchPayload(deviceModel: 'test');
-    expect(payload['duration_ms'], 2000);
-    expectNoEpoch(payload);
+    expectNoEpoch(result.events);
+    expectNoEpoch(result.poseSamples);
+    expectNoEpoch(result.toMetricsJson());
+    final offsets = [for (final e in result.events) e['offsetMs'] as int];
+    expect(offsets, orderedEquals([...offsets]..sort()));
+    expect(
+      result.poseSamples.expand((f) => f['hands'] as List),
+      everyElement(containsPair('hand', 0)),
+    );
   });
 
   test('losing hand during hold resets to waiting', () {
