@@ -4,8 +4,8 @@ import 'package:msupperlimbs/features/motion/domain/session_clock.dart';
 
 /// Single-clock pregame telemetry buffer.
 ///
-/// All pose samples, sensor samples and trigger events share the same
-/// millisecond timeline via [nowMs] (epoch ms from one wall clock).
+/// All pose samples, sensor samples and trigger events share the run
+/// timeline via [offsetMs] (ms since `SessionClock.startedAt`, no epoch).
 class PregameTelemetryBuffer {
   PregameTelemetryBuffer({
     required this.clock,
@@ -18,10 +18,10 @@ class PregameTelemetryBuffer {
   final int sensorMinIntervalMs;
 
   bool _active = false;
-  int? _startedAtMs;
-  int? _endedAtMs;
-  int _lastPoseMs = 0;
-  int _lastSensorMs = 0;
+  int? _startedOffsetMs;
+  int? _endedOffsetMs;
+  int? _lastPoseMs;
+  int? _lastSensorMs;
 
   final List<Map<String, dynamic>> poseSamples = [];
   final List<Map<String, dynamic>> sensorSamples = [];
@@ -29,36 +29,35 @@ class PregameTelemetryBuffer {
   Map<String, double>? targetCalibrationOffset;
 
   bool get isActive => _active;
-  int? get startedAtMs => _startedAtMs;
-  int? get endedAtMs => _endedAtMs;
+  int? get startedOffsetMs => _startedOffsetMs;
+  int? get endedOffsetMs => _endedOffsetMs;
 
   /// Canonical clock for every sample/event in this run.
-  int nowMs([DateTime? at]) =>
-      (at ?? clock.now()).toUtc().millisecondsSinceEpoch;
+  int offsetMs([DateTime? at]) => clock.offsetMs(at);
 
   void start({DateTime? at}) {
     if (_active) return;
     _active = true;
-    _startedAtMs = nowMs(at);
-    _endedAtMs = null;
+    _startedOffsetMs = offsetMs(at);
+    _endedOffsetMs = null;
     poseSamples.clear();
     sensorSamples.clear();
     events.clear();
     targetCalibrationOffset = null;
-    _lastPoseMs = 0;
-    _lastSensorMs = 0;
+    _lastPoseMs = null;
+    _lastSensorMs = null;
     addEvent('calibration_start', at: at);
   }
 
   void addPose(List<LandmarkPoint> pose, {DateTime? at}) {
     if (!_active) return;
-    final t = nowMs(at);
-    if (_lastPoseMs != 0 && t - _lastPoseMs < poseMinIntervalMs) return;
+    final t = offsetMs(at);
+    final last = _lastPoseMs;
+    if (last != null && t - last < poseMinIntervalMs) return;
     _lastPoseMs = t;
     poseSamples.add({
-      't': t,
+      'offsetMs': t,
       'pose': [for (final p in pose) p.toKinematicJson()],
-      'hands': const <Map<String, dynamic>>[],
     });
   }
 
@@ -75,11 +74,12 @@ class PregameTelemetryBuffer {
     DateTime? at,
   }) {
     if (!_active) return;
-    final t = nowMs(at);
-    if (_lastSensorMs != 0 && t - _lastSensorMs < sensorMinIntervalMs) return;
+    final t = offsetMs(at);
+    final last = _lastSensorMs;
+    if (last != null && t - last < sensorMinIntervalMs) return;
     _lastSensorMs = t;
     sensorSamples.add({
-      't': t,
+      'offsetMs': t,
       'ax': ax,
       'ay': ay,
       'az': az,
@@ -94,8 +94,12 @@ class PregameTelemetryBuffer {
 
   void addEvent(String type, {Map<String, dynamic>? data, DateTime? at}) {
     if (!_active && type != 'calibration_start') return;
-    final t = nowMs(at);
-    events.add({'t': t, 'type': type, 'data': ?data});
+    events.add({'offsetMs': offsetMs(at), 'type': type, 'data': ?data});
+  }
+
+  /// Setup phase change (deviceStill … calibrateFinger) on the run timeline.
+  void addPhase({String? from, required String to, DateTime? at}) {
+    addEvent('phase', data: {'fromPhase': ?from, 'toPhase': to}, at: at);
   }
 
   void setCalibrationOffset(
@@ -133,10 +137,10 @@ class PregameTelemetryBuffer {
     Map<String, dynamic>? advSettingsSnapshot,
     DateTime? at,
   }) {
-    final end = nowMs(at);
+    final end = offsetMs(at);
     if (_active) {
       addEvent(status == 'abandoned' ? 'abandoned' : 'game_start', at: at);
-      _endedAtMs = end;
+      _endedOffsetMs = end;
       _active = false;
     }
     return {
@@ -144,8 +148,8 @@ class PregameTelemetryBuffer {
       'device_model': ?deviceModel,
       'game_mode': gameMode,
       'status': status,
-      'started_at_ms': _startedAtMs ?? end,
-      'ended_at_ms': _endedAtMs ?? end,
+      'started_offset_ms': _startedOffsetMs ?? end,
+      'ended_offset_ms': _endedOffsetMs ?? end,
       'target_calibration_offset': ?targetCalibrationOffset,
       'screen_width': screenWidth,
       'screen_height': screenHeight,
