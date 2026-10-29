@@ -16,18 +16,18 @@ final fnosePregameRepositoryProvider = Provider<FnosePregameRepository>((ref) {
 });
 
 final fnoseSettingsProvider = FutureProvider<FnoseSettings>((ref) async {
-  final auth = ref.watch(authProvider);
-  final token = auth.accessToken;
-  if (token == null || auth.status != AuthStatus.authenticated) {
+  final status = ref.watch(authProvider.select((auth) => auth.status));
+  final token = ref.read(authProvider).accessToken;
+  if (token == null || status != AuthStatus.authenticated) {
     throw StateError('Not authenticated');
   }
   return ref.watch(fnoseSettingsRepositoryProvider).getSettings(token);
 });
 
 final fnoseAdvSettingsProvider = FutureProvider<FnoseAdvSettings>((ref) async {
-  final auth = ref.watch(authProvider);
-  final token = auth.accessToken;
-  if (token == null || auth.status != AuthStatus.authenticated) {
+  final status = ref.watch(authProvider.select((auth) => auth.status));
+  final token = ref.read(authProvider).accessToken;
+  if (token == null || status != AuthStatus.authenticated) {
     throw StateError('Not authenticated');
   }
   return ref.watch(fnoseSettingsRepositoryProvider).getAdvSettings(token);

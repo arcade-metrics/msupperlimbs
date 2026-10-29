@@ -23,14 +23,15 @@ import 'package:msupperlimbs/features/rapid/presentation/screens/rapid_settings_
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
+/// Built once: watching [authProvider] here would rebuild the router (and
+/// reset navigation) every time the access token is refreshed.
 final routerProvider = Provider<GoRouter>((ref) {
-  final auth = ref.watch(authProvider);
-
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/login',
     refreshListenable: _AuthRefresh(ref),
     redirect: (context, state) {
+      final auth = ref.read(authProvider);
       final loggingIn = state.matchedLocation == '/login';
       if (auth.status == AuthStatus.unknown) return null;
       if (auth.status == AuthStatus.unauthenticated) {
@@ -108,7 +109,10 @@ final routerProvider = Provider<GoRouter>((ref) {
 
 class _AuthRefresh extends ChangeNotifier {
   _AuthRefresh(this._ref) {
-    _ref.listen<AuthState>(authProvider, (previous, next) => notifyListeners());
+    _ref.listen<AuthStatus>(
+      authProvider.select((auth) => auth.status),
+      (previous, next) => notifyListeners(),
+    );
   }
 
   final Ref _ref;
