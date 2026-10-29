@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:msupperlimbs/features/fnose/data/models/fnose_settings.dart';
 import 'package:msupperlimbs/features/fnose/domain/arm_movement_tracker.dart';
+import 'package:msupperlimbs/features/fnose/domain/fnose_calibration.dart';
 import 'package:msupperlimbs/features/fnose/domain/fnose_types.dart';
 import 'package:msupperlimbs/features/fnose/domain/pregame_telemetry_buffer.dart';
 import 'package:msupperlimbs/features/motion/domain/landmark_point.dart';
@@ -50,6 +51,7 @@ class FnoseGameEngine {
        ) {
     telemetry.start();
     telemetry.addPhase(to: phase.name);
+    _enterStep(phase, _clock.now());
   }
 
   final FnoseSettings _settings;
@@ -80,7 +82,9 @@ class FnoseGameEngine {
   Offset? fingerCalibrationOffset;
   Offset? calibratedFingerPosition;
   Offset? calibrationTargetPosition;
-  String? pregameRunId;
+
+  /// `/calibrations` run of this pre-game, once uploaded.
+  String? calibrationRunId;
 
   int? screenWidth;
   int? screenHeight;
@@ -97,6 +101,12 @@ class FnoseGameEngine {
   Offset? _fingerSmoothed;
   DateTime? _fingerOutsideSince;
   bool _pregameClosed = false;
+
+  /// Setup steps reached so far, in the order first entered.
+  final _steps = <FnoseGamePhase, SetupStepRecord>{};
+  double _holdSumA = 0;
+  double _holdSumB = 0;
+  int _holdSamples = 0;
 
   DateTime? _leftFireUntil;
   DateTime? _rightFireUntil;
@@ -181,15 +191,20 @@ class FnoseGameEngine {
       screenHeight: screenHeight,
       imageWidth: imageWidth,
       imageHeight: imageHeight,
-      pregameRunId: pregameRunId,
+      calibrationRunId: calibrationRunId,
       preview: _mapper?.normalizedPreview,
     );
   }
 
   void notify() => _onChanged?.call();
 
+  static bool _isSetup(FnoseGamePhase p) =>
+      p.index <= FnoseGamePhase.calibrateFinger.index;
+
   void _setPhase(FnoseGamePhase next, DateTime at) {
     if (next == phase) return;
+    if (_isSetup(phase) && next.index > phase.index) _passStep(phase, at);
+    if (_isSetup(next)) _enterStep(next, at);
     if (next.index <= FnoseGamePhase.calibrateFinger.index) {
       telemetry.addPhase(from: phase.name, to: next.name, at: at);
     } else {
@@ -202,6 +217,37 @@ class FnoseGameEngine {
       );
     }
     phase = next;
+  }
+
+  void _enterStep(FnoseGamePhase step, DateTime at) {
+    final seen = _steps[step];
+    if (seen == null) {
+      _steps[step] = SetupStepRecord(step, _clock.offsetMs(at));
+      return;
+    }
+    seen
+      ..attempts += 1
+      ..passed = false
+      ..endedMs = null;
+  }
+
+  /// Called before [_resetHold], while the completing hold is still known.
+  void _passStep(FnoseGamePhase step, DateTime at) {
+    final record = _steps[step];
+    if (record == null) return;
+    final holdStart = _holdStartedAt;
+    record
+      ..passed = true
+      ..endedMs = _clock.offsetMs(at)
+      ..heldMs = holdStart == null ? 0 : at.difference(holdStart).inMilliseconds
+      ..meanA = _holdSamples == 0 ? null : _holdSumA / _holdSamples
+      ..meanB = _holdSamples == 0 ? null : _holdSumB / _holdSamples;
+  }
+
+  void _sampleHold(double a, [double b = 0]) {
+    _holdSumA += a;
+    _holdSumB += b;
+    _holdSamples += 1;
   }
 
   /// Sensor tick from [PregameSensorSampler] — same wall clock as pose/events.
@@ -253,6 +299,7 @@ class FnoseGameEngine {
           _resetHold();
         } else {
           _startOrContinueHold(now);
+          _sampleHold(roll);
           if (_holdReached(_adv.i('tilt_hold_ms', 700), now)) {
             _setPhase(FnoseGamePhase.devicePitch, now);
             _resetHold();
@@ -267,6 +314,7 @@ class FnoseGameEngine {
           _resetHold();
         } else {
           _startOrContinueHold(now);
+          _sampleHold(pitch);
           if (_holdReached(_adv.i('tilt_hold_ms', 700), now)) {
             _setPhase(FnoseGamePhase.alignNose, now);
             _resetHold();
@@ -307,6 +355,7 @@ class FnoseGameEngine {
           _resetHold();
         } else {
           _startOrContinueHold(now);
+          _sampleHold(point.dx, point.dy);
           if (_holdReached(_adv.i('nose_hold_ms', 1200), now)) {
             _setPhase(FnoseGamePhase.calibrateFinger, now);
             _resetHold();
@@ -450,30 +499,178 @@ class FnoseGameEngine {
   void _resetHold() {
     _holdStartedAt = null;
     _lastHoldSampleAt = null;
+    _holdSumA = 0;
+    _holdSumB = 0;
+    _holdSamples = 0;
   }
 
-  /// Closes pregame window and returns POST payload (same `offsetMs` timeline).
-  Map<String, dynamic>? closePregame({
-    required String status,
-    String? deviceModel,
+  /// Closes the pre-game window and returns the run for `/calibrations`
+  /// (same `offsetMs` timeline as the match); null if already closed.
+  /// [completed] is false when the player leaves during the setup.
+  FnoseCalibrationRun? closeCalibration({
+    required bool completed,
     DateTime? at,
   }) {
     if (_pregameClosed) return null;
     _pregameClosed = true;
-    return telemetry.finish(
-      gameMode: _settings.gameMode,
-      status: status,
-      deviceModel: deviceModel,
-      screenWidth: screenWidth,
-      screenHeight: screenHeight,
-      imageWidth: imageWidth,
-      imageHeight: imageHeight,
-      preview: _mapper?.normalizedPreview,
-      settingsSnapshot: _settings.toUpdateJson(),
-      advSettingsSnapshot: Map<String, dynamic>.from(_adv.data),
-      at: at,
+    telemetry.close(abandoned: !completed, at: at);
+    final end = telemetry.endedOffsetMs ?? _clock.offsetMs(at);
+    final offset = fingerCalibrationOffset;
+    return FnoseCalibrationRun(
+      completed: completed,
+      startedOffsetMs: telemetry.startedOffsetMs ?? end,
+      endedOffsetMs: end,
+      context: {
+        'screenWidth': ?screenWidth,
+        'screenHeight': ?screenHeight,
+        'imageWidth': ?imageWidth,
+        'imageHeight': ?imageHeight,
+        'preview': ?_mapper?.normalizedPreview,
+        'settingsSnapshot': {..._settings.toUpdateJson(), ..._adv.toApiJson()},
+        'dataContractVersion': MotionDataContract.version,
+      },
+      sensorSamples: List.of(telemetry.sensorSamples),
+      poseFrames: List.of(telemetry.poseSamples),
+      events: [
+        for (final e in telemetry.events)
+          {
+            'offsetMs': e['offsetMs'],
+            'eventType': e['type'],
+            'payload': ?e['data'],
+          },
+      ],
+      steps: [
+        for (final step
+            in _steps.values.toList()
+              ..sort((a, b) => a.phase.index.compareTo(b.phase.index)))
+          _stepJson(step),
+      ],
+      result: completed && offset != null
+          ? {
+              'fingerOffset': {
+                'dx': offset.dx,
+                'dy': offset.dy,
+                'space': 'screen_norm',
+              },
+            }
+          : null,
     );
   }
+
+  Map<String, dynamic> _stepJson(SetupStepRecord step) {
+    final passed = step.passed;
+    final common = {
+      'status': passed ? 'PASSED' : 'ABANDONED',
+      'startedOffsetMs': step.startedMs,
+      'endedOffsetMs': ?step.endedMs,
+      'attempts': step.attempts,
+    };
+    Map<String, dynamic> tilt(String axis, String min, String max) => {
+      'stepType': 'DEVICE_TILT',
+      ...common,
+      'params': {
+        'axis': axis,
+        'minDeg': _adv.d(min, axis == 'ROLL' ? -8 : -12),
+        'maxDeg': _adv.d(max, axis == 'ROLL' ? 8 : 12),
+        'holdMs': _adv.i('tilt_hold_ms', 700),
+      },
+      if (passed) 'result': {'meanDeg': step.meanA ?? 0, 'heldMs': step.heldMs},
+    };
+    return switch (step.phase) {
+      FnoseGamePhase.deviceStill => {
+        'stepType': 'DEVICE_STILL',
+        ...common,
+        'params': {
+          'requiredStableTimeMs': _adv.i('required_stable_time_ms', 2500),
+          'stabilityGraceMs': _adv.i('stability_grace_ms', 400),
+        },
+        if (passed) 'result': {'achievedMs': step.heldMs},
+      },
+      FnoseGamePhase.deviceRoll => tilt('ROLL', 'roll_min_deg', 'roll_max_deg'),
+      FnoseGamePhase.devicePitch => tilt(
+        'PITCH',
+        'pitch_min_deg',
+        'pitch_max_deg',
+      ),
+      FnoseGamePhase.alignNose => {
+        'stepType': 'BODY_LANDMARK_ALIGN',
+        ...common,
+        'params': {
+          'landmark': 'nose',
+          'region': _region(noseTargetCenter, noseTargetRadius),
+          'holdMs': _adv.i('nose_hold_ms', 1200),
+        },
+        if (passed) 'result': _alignResult(step),
+      },
+      _ => _targetStep(step, common),
+    };
+  }
+
+  Map<String, dynamic> _alignResult(SetupStepRecord step) {
+    final mean = _inRegionSpace(Offset(step.meanA ?? 0, step.meanB ?? 0));
+    return {'meanX': mean.dx, 'meanY': mean.dy, 'heldMs': step.heldMs};
+  }
+
+  Map<String, dynamic> _targetStep(
+    SetupStepRecord step,
+    Map<String, dynamic> common,
+  ) {
+    final mapper = _mapper;
+    final offset = fingerCalibrationOffset;
+    final point = calibratedFingerPosition;
+    final tolerance = _adv.d('finger_stability', 0.05);
+    return {
+      'stepType': 'TARGET_POINT',
+      ...common,
+      'params': {
+        'landmark': _settings.gameMode == 'rightHand'
+            ? 'right_index'
+            : 'left_index',
+        'target': _region(
+          calibrationTargetPosition ?? fingerTargetCenter,
+          fingerTargetRadius,
+        ),
+        'tolerance': mapper == null
+            ? tolerance
+            : mapper.radiusToPixels(tolerance),
+        'smoothing': _adv.d('finger_smoothing', 0.35).clamp(0.05, 1.0),
+        'holdMs': _adv.i('finger_hold_ms', 1200),
+      },
+      if (step.passed && offset != null)
+        'result': {
+          'offsetDx': _inRegionSpace(offset).dx,
+          'offsetDy': _inRegionSpace(offset).dy,
+          if (point != null) ...{
+            'pointX': _inRegionSpace(point).dx,
+            'pointY': _inRegionSpace(point).dy,
+          },
+        },
+    };
+  }
+
+  /// Regions are in screen pixels when the screen is known: the app's radii
+  /// are fractions of the shorter side, which is not `screen_norm`.
+  Map<String, dynamic> _region(Offset center, double radius) {
+    final mapper = _mapper;
+    if (mapper == null) {
+      return {
+        'x': center.dx,
+        'y': center.dy,
+        'radius': radius,
+        'space': 'screen_norm',
+      };
+    }
+    final px = mapper.toPixels(center);
+    return {
+      'x': px.dx,
+      'y': px.dy,
+      'radius': mapper.radiusToPixels(radius),
+      'space': 'screen_px',
+    };
+  }
+
+  Offset _inRegionSpace(Offset screenFraction) =>
+      _mapper?.toPixels(screenFraction) ?? screenFraction;
 
   void beginPlaying() {
     if (phase != FnoseGamePhase.countdown) return;
@@ -703,7 +900,7 @@ class FnoseGameResult {
     this.matchId,
     this.sessionId,
     this.saveError,
-    this.pregameRunId,
+    this.calibrationRunId,
     this.preview,
   });
 
@@ -729,7 +926,7 @@ class FnoseGameResult {
   final String? matchId;
   final String? sessionId;
   final String? saveError;
-  final String? pregameRunId;
+  final String? calibrationRunId;
   final Map<String, double>? preview;
 
   bool get saved => matchId != null && saveError == null;
@@ -738,7 +935,7 @@ class FnoseGameResult {
     String? matchId,
     String? sessionId,
     String? saveError,
-    String? pregameRunId,
+    String? calibrationRunId,
     bool clearSaveError = false,
   }) {
     return FnoseGameResult(
@@ -762,7 +959,7 @@ class FnoseGameResult {
       matchId: matchId ?? this.matchId,
       sessionId: sessionId ?? this.sessionId,
       saveError: clearSaveError ? null : (saveError ?? this.saveError),
-      pregameRunId: pregameRunId ?? this.pregameRunId,
+      calibrationRunId: calibrationRunId ?? this.calibrationRunId,
       preview: preview,
     );
   }
@@ -789,7 +986,7 @@ class FnoseGameResult {
       'phase_events': phaseEvents,
       'pose_samples': poseSamples,
       'touch_events': touchEvents,
-      'pregame_run_id': ?pregameRunId,
+      'calibration_run_id': ?calibrationRunId,
       'preview': preview,
     };
   }
