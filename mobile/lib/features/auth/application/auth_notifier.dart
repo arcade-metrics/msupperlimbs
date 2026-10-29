@@ -59,6 +59,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// it (a widget's `ref` is gone after dispose).
   String? get accessToken => state.accessToken;
 
+  /// Id of the logged-in user, under the same terms as [accessToken].
+  String? get userId => state.user?.id;
+
   /// The refresh in flight. The server rotates the refresh token, so two
   /// concurrent refreshes would revoke each other: callers share this one.
   Future<String?>? _refreshing;

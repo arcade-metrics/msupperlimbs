@@ -120,6 +120,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get error_generic => 'Something went wrong. Try again.';
 
   @override
+  String get match_keptOffline =>
+      'No connection. The match is kept on this device and will be sent when you are back online.';
+
+  @override
   String get home_title => 'Home';
 
   @override

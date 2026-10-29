@@ -1,5 +1,6 @@
 import 'package:msupperlimbs/features/match/application/match_flow.dart';
 import 'package:msupperlimbs/features/match/application/match_uploader.dart';
+import 'package:msupperlimbs/features/match/application/pending_uploads.dart';
 import 'package:msupperlimbs/features/match/data/match_api.dart';
 import 'package:msupperlimbs/features/rapid/domain/rapid_game_result.dart';
 
@@ -8,8 +9,17 @@ class RapidMatchFlow {
   RapidMatchFlow(
     MatchApi api,
     String? Function() accessToken, {
+    String? Function()? userId,
+    PendingUploads? queue,
     MatchUploader Function()? uploader,
-  }) : _flow = MatchFlow(api, accessToken, slug: slug, uploader: uploader);
+  }) : _flow = MatchFlow(
+         api,
+         accessToken,
+         slug: slug,
+         userId: userId,
+         queue: queue,
+         uploader: uploader,
+       );
 
   static const slug = 'msupperlimbs-rapid';
 

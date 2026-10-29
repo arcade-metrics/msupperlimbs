@@ -47,6 +47,7 @@
   "error_network": "No connection to the server. Check your internet and try again.",
   "error_server": "The server is unavailable. Try again in a moment.",
   "error_generic": "Something went wrong. Try again.",
+  "match_keptOffline": "No connection. The match is kept on this device and will be sent when you are back online.",
 
   "home_title": "Home",
   "home_fingerToNoseChallenge": "Finger-to-Nose Challenge",

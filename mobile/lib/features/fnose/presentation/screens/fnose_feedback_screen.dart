@@ -48,6 +48,8 @@ class FnoseFeedbackScreen extends StatelessWidget {
                     l10n.fnose_feedback_saved(r.matchId!.substring(0, 8)),
                     style: const TextStyle(color: Colors.green),
                   )
+                else if (r.queued)
+                  Text(r.saveError!, textAlign: TextAlign.center)
                 else if (r.saveError != null)
                   Text(
                     l10n.fnose_feedback_saveFailed(r.saveError!),

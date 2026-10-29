@@ -919,6 +919,7 @@ class FnoseGameResult {
     this.saveError,
     this.calibrationRunId,
     this.preview,
+    this.queued = false,
   });
 
   final int totalTime;
@@ -949,6 +950,9 @@ class FnoseGameResult {
   final String? calibrationRunId;
   final Map<String, double>? preview;
 
+  /// Not sent yet but kept on the device; [saveError] says so.
+  final bool queued;
+
   bool get saved => matchId != null && saveError == null;
 
   FnoseGameResult copyWith({
@@ -956,6 +960,7 @@ class FnoseGameResult {
     String? sessionId,
     String? saveError,
     String? calibrationRunId,
+    bool? queued,
     bool clearSaveError = false,
   }) {
     return FnoseGameResult(
@@ -980,6 +985,7 @@ class FnoseGameResult {
       saveError: clearSaveError ? null : (saveError ?? this.saveError),
       calibrationRunId: calibrationRunId ?? this.calibrationRunId,
       preview: preview,
+      queued: queued ?? this.queued,
     );
   }
 

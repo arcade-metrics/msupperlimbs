@@ -104,6 +104,26 @@ bool isTransient(Object error) {
       error is TimeoutException;
 }
 
+/// Worth keeping for a later resend: besides [isTransient], an expired
+/// session (401, no token), a timeout (408) or rate limiting (429). Any
+/// other 4xx would be rejected again.
+bool canRetryLater(Object error) {
+  if (isTransient(error) || error is StateError) return true;
+  return error is ApiException &&
+      const {401, 408, 429}.contains(error.statusCode);
+}
+
+/// The upload could not finish now and was kept on the device; it is sent
+/// again by `PendingUploads.flush`.
+class UploadQueuedException implements Exception {
+  const UploadQueuedException(this.cause);
+
+  final Object cause;
+
+  @override
+  String toString() => 'Upload queued for later: $cause';
+}
+
 List<List<T>> chunked<T>(List<T> items, int size) => [
   for (var i = 0; i < items.length; i += size)
     items.sublist(i, min(i + size, items.length)),
