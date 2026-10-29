@@ -84,19 +84,7 @@ class AppLocalizationsPt extends AppLocalizations {
       'Este e-mail já está cadastrado. Entre com ele.';
 
   @override
-  String get auth_loginSuccessful => 'Login realizado com sucesso!';
-
-  @override
   String get auth_invalidCredentials => 'E-mail ou senha inválidos.';
-
-  @override
-  String get auth_accountCreatedSuccess => 'Conta criada com sucesso!';
-
-  @override
-  String get auth_failedToCreateAccount => 'Falha ao criar conta.';
-
-  @override
-  String get auth_missingToken => 'Sem token de autenticação';
 
   @override
   String get error_validation =>

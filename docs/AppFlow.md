@@ -1,12 +1,13 @@
 # AppFlow (regras preservadas — stack atualizada)
 
-Adaptado de `old/.../doc/AppFlow.md`. Firebase → API + SQL. ML Kit → MediaPipe.
+Adaptado de `old/.../doc/AppFlow.md`. Firebase → ciatec-core. ML Kit → MediaPipe.
 
 ## Autenticação
 
-1. Registo: email, senha, nome, consentimento obrigatório
-2. Login: email/senha → JWT
-3. Pós-auth: garantir settings default + sessão diária `YYYYMMDD` → `/home`
+1. Registo: email, senha (8+ caracteres, 1 maiúscula, 1 número) e nome
+2. Login: email/senha → access + refresh do ciatec-core
+3. Arranque: refresh do token guardado → `/home`; settings nascem do preset
+   no primeiro `GET`; pendentes de upload são reenviados
 
 ## FNose — navegação
 
@@ -26,15 +27,19 @@ Adaptado de `old/.../doc/AppFlow.md`. Firebase → API + SQL. ML Kit → MediaPi
 4. Countdown 3-2-1-GO
 
 ### Telemetria pré-jogo
-Do `calibration_start` até `game_start`, um único relógio (epoch ms `t`) sincroniza:
+Do `calibration_start` até `game_start`, um único relógio (`offsetMs` desde o
+início da execução) sincroniza:
 - landmarks (pose)
 - sensores (accel ± gyro + ângulo)
-- eventos de trigger (`stability_ok/lost`, `pose_valid/invalid`, `target_calibrated`, `countdown_start`, `game_start`)
+- eventos de trigger (`stability_ok/lost`, `phase`, `nose_aligned`, `target_calibrated`, `countdown_start`, `game_start`)
 
-Persistência: `POST /fnose/pregame` → `fnose_pregame_runs` + chunks pose/sensor/event; o match liga via `pregame_run_id`.
+Persistência: execução `device-body-setup/v1` em `/calibrations` (5 etapas
+tipadas + sensores, pose e eventos em chunks); a partida liga via
+`calibration_run_id`.
 
 ### Persistência (jogo)
-Match + chunks pose/touch via API (JSONB).
+`/sessions/matches` → context → pose e eventos (`phase`, `spark`, `hit`) em
+chunks → metrics → finish com `Idempotency-Key`.
 
 ## Rapid — navegação
 
@@ -43,11 +48,12 @@ Match + chunks pose/touch via API (JSONB).
 /rapid-game → /rapid-feedback → /rapid-gameover
 ```
 
-Hands via MediaPipe; taps + pulse visualization; chunks pose/tap/pulse.
+Hands via MediaPipe; taps + pulse visualization; chunks de pose e eventos
+`phase`/`tap`/`pulse_tick`.
 
 ## Câmera
 
-- Resolução por device (configs em SQL `camera_image_configs`)
+- Resolução baixa fixa (`ResolutionPreset.low`), imagem reduzida para inferência
 - Android NV21 / iOS BGRA8888
 - Landscape no jogo; portrait em menus
 

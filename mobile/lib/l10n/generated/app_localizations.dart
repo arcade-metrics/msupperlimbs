@@ -236,35 +236,11 @@ abstract class AppLocalizations {
   /// **'This email is already registered. Log in instead.'**
   String get auth_emailInUse;
 
-  /// No description provided for @auth_loginSuccessful.
-  ///
-  /// In en, this message translates to:
-  /// **'Login successful!'**
-  String get auth_loginSuccessful;
-
   /// No description provided for @auth_invalidCredentials.
   ///
   /// In en, this message translates to:
   /// **'Invalid email or password.'**
   String get auth_invalidCredentials;
-
-  /// No description provided for @auth_accountCreatedSuccess.
-  ///
-  /// In en, this message translates to:
-  /// **'Account created successfully!'**
-  String get auth_accountCreatedSuccess;
-
-  /// No description provided for @auth_failedToCreateAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to create account.'**
-  String get auth_failedToCreateAccount;
-
-  /// No description provided for @auth_missingToken.
-  ///
-  /// In en, this message translates to:
-  /// **'Not authenticated'**
-  String get auth_missingToken;
 
   /// No description provided for @error_validation.
   ///

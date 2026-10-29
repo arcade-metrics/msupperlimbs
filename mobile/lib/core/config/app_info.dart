@@ -3,7 +3,7 @@ import 'dart:io';
 /// What the app reports about itself in match context and finish metadata.
 abstract final class AppInfo {
   /// Keep in step with `version` in pubspec.yaml.
-  static const version = '0.1.0';
+  static const version = '3.0.0';
 
   static String get platform => Platform.operatingSystem;
 

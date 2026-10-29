@@ -1,64 +1,39 @@
-# Deploy — MS Upper Limbs API
+# Deploy — MS Upper Limbs (app)
+
+A API é o [ciatec-core](https://github.com/ciatec-org/ciatec-core); este
+repositório só tem o app. O deploy da API é feito no ciatec-core.
 
 ## Pré-requisitos
 
-- Python 3.12+
-- PostgreSQL 16 (local ou Docker)
-- Flutter stable (mobile)
+- Flutter stable (`mobile/.fvmrc`)
+- Android SDK (o app é Android-first)
+- Para testar localmente: o ciatec-core a correr (`src/api`, porta 8000)
 
-## Desenvolvimento local (Postgres já existente)
+## API usada pelo app
 
-Se usas a base `teamap_db` (como no `.env.example`):
+| Ambiente | Como |
+|----------|------|
+| Produção | por omissão: `https://api.ciatec.org` (`ApiConfig.baseUrl`) |
+| Local | `.\scripts\dev-local.ps1` → `http://<IP-do-PC>:8000` (ou `10.0.2.2` no emulador) |
+| Outra | `--dart-define=API_BASE_URL=https://…` |
 
-```powershell
-cd backend
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-copy .env.example .env
-# edita JWT_SECRET em produção
-alembic upgrade head
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
+Para testar o refresh de token, use `JWT_EXPIRES_IN=60` no `.env` da API do
+ciatec-core local.
 
-Health: http://localhost:8000/health (`status` + `db`)  
-OpenAPI: http://localhost:8000/docs
+## Release
 
-## Docker Compose (API + Postgres)
+1. Subir `version` em `mobile/pubspec.yaml` e `AppInfo.version`
+   (`mobile/lib/core/config/app_info.dart`) — os dois juntos.
+2. Build:
 
-Na raiz do repo:
+   ```powershell
+   cd mobile
+   flutter pub get
+   flutter build apk --release
+   ```
 
-```powershell
-$env:JWT_SECRET = "<segredo-longo>"
-docker compose up -d --build
-```
-
-- DB: `msupperlimbs` / user+pass `msupperlimbs` na porta `5432`
-- API: http://localhost:8000  
-- Entrypoint corre `alembic upgrade head` antes do uvicorn
-
-Para apontar o Flutter para a API no PC (device físico):
-
-```powershell
-flutter run --dart-define=API_BASE_URL=http://<IP-do-PC>:8000
-```
-
-## Checklist produção
-
-1. `JWT_SECRET` forte (não uses o default)
-2. `CORS_ORIGINS` com os hosts reais (não `*` se possível)
-3. HTTPS à frente da API (reverse proxy)
-4. Postgres com backups / volume persistente
-5. Sem `--reload` no uvicorn (já é o default do Dockerfile)
-6. `alembic upgrade head` em cada deploy (automático no container)
-
-## Mobile (release)
-
-```powershell
-cd mobile
-flutter pub get
-flutter build apk --release --dart-define=API_BASE_URL=https://api.exemplo.com
-```
+   Sem `--dart-define`, o build aponta para produção.
+3. Tag `vX.Y.Z` e GitHub Release no merge para `main`.
 
 MediaPipe: modelos `.task` em `android/app/src/main/assets/`.
 
@@ -68,8 +43,4 @@ MediaPipe: modelos `.task` em `android/app/src/main/assets/`.
 .\scripts\check.ps1
 ```
 
-Corre testes backend (pytest) + Flutter (`test/features/rapid`).
-
-## Migração Firestore → SQL
-
-Opcional, ver [MIGRATION_FIRESTORE.md](MIGRATION_FIRESTORE.md).
+`flutter analyze` + `flutter test test/features/` (o mesmo que o CI testa).

@@ -1,6 +1,11 @@
 <#
 .SYNOPSIS
-  Sobe a API local e corre flutter run para testar o app.
+  Corre o app (flutter run) contra o ciatec-core.
+
+.DESCRIPTION
+  Por omissão aponta para um ciatec-core local na porta 8000, pelo IP da
+  máquina na LAN (device físico) ou 10.0.2.2 (emulador). O ciatec-core local
+  sobe-se no repositório dele; este script só avisa se não estiver a responder.
 
 .EXAMPLE
   .\scripts\dev-local.ps1
@@ -10,20 +15,24 @@
 
 .EXAMPLE
   .\scripts\dev-local.ps1 -Emulator
+
+.EXAMPLE
+  .\scripts\dev-local.ps1 -ApiBaseUrl https://api.ciatec.org
 #>
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
   [string]$Device,
   [switch]$Emulator,
-  [switch]$ApiOnly,
-  [switch]$FlutterOnly,
-  [int]$Port = 8000
+  # URL completa da API; sem ela, ciatec-core local na porta -Port.
+  [string]$ApiBaseUrl,
+  [int]$Port = 8000,
+  # Mantido para os comandos antigos: o script já só corre o Flutter.
+  [switch]$FlutterOnly
 )
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-$backend = Join-Path $root "backend"
 $mobile = Join-Path $root "mobile"
 $adbConfig = Join-Path $PSScriptRoot "adb-wireless.config.json"
 
@@ -57,66 +66,13 @@ function Get-LanIp {
   return $addr
 }
 
-function Test-ApiHealth([int]$P) {
+function Test-ApiHealth([string]$Url) {
   try {
-    $r = Invoke-WebRequest -Uri "http://127.0.0.1:$P/health" -UseBasicParsing -TimeoutSec 2
+    $r = Invoke-WebRequest -Uri "$Url/health" -UseBasicParsing -TimeoutSec 2
     return $r.StatusCode -eq 200
   } catch {
     return $false
   }
-}
-
-function Ensure-Backend {
-  $py = Join-Path $backend ".venv\Scripts\python.exe"
-  if (-not (Test-Path $py)) {
-    Write-Host "A criar venv backend..." -ForegroundColor Yellow
-    Push-Location $backend
-    try {
-      py -3.12 -m venv .venv
-      & $py -m pip install -r requirements.txt
-    } finally {
-      Pop-Location
-    }
-  }
-
-  $envFile = Join-Path $backend ".env"
-  if (-not (Test-Path $envFile)) {
-    $example = Join-Path $backend ".env.example"
-    if (Test-Path $example) {
-      Copy-Item $example $envFile
-      Write-Host "Criado backend\.env a partir de .env.example" -ForegroundColor Yellow
-    }
-  }
-
-  return $py
-}
-
-function Start-ApiIfNeeded([string]$Py, [int]$P) {
-  if (Test-ApiHealth -P $P) {
-    Write-Host "API já a correr em :$P" -ForegroundColor DarkGray
-    return
-  }
-
-  Write-Host "A subir API (uvicorn :$P)..." -ForegroundColor Cyan
-  $uvicorn = Join-Path $backend ".venv\Scripts\uvicorn.exe"
-  if (-not (Test-Path $uvicorn)) {
-    throw "uvicorn não encontrado em $uvicorn — corre pip install -r requirements.txt no backend."
-  }
-
-  $arg = "Set-Location '$backend'; & '$uvicorn' app.main:app --host 0.0.0.0 --port $P --reload"
-  Start-Process -FilePath "powershell.exe" -ArgumentList @(
-    "-NoExit", "-NoProfile", "-Command", $arg
-  ) | Out-Null
-
-  $deadline = (Get-Date).AddSeconds(30)
-  while ((Get-Date) -lt $deadline) {
-    if (Test-ApiHealth -P $P) {
-      Write-Host "API OK — http://127.0.0.1:$P/health" -ForegroundColor Green
-      return
-    }
-    Start-Sleep -Milliseconds 500
-  }
-  throw "API não respondeu em http://127.0.0.1:$P/health (ver janela do uvicorn)."
 }
 
 function Resolve-FlutterDevice {
@@ -138,21 +94,20 @@ function Resolve-FlutterDevice {
 
 Write-Host "== MS Upper Limbs — dev local ==" -ForegroundColor Cyan
 
-if (-not $FlutterOnly) {
-  $py = Ensure-Backend
-  Start-ApiIfNeeded -Py $py -P $Port
-}
-
-if ($ApiOnly) {
-  Write-Host "Só API. Ctrl+C na janela do uvicorn para parar." -ForegroundColor DarkGray
-  exit 0
-}
-
-if ($Emulator) {
-  $apiBase = "http://10.0.2.2:$Port"
+if ($ApiBaseUrl) {
+  $apiBase = $ApiBaseUrl.TrimEnd('/')
+  $healthUrl = $apiBase
 } else {
-  $lanIp = Get-LanIp
-  $apiBase = "http://${lanIp}:$Port"
+  $healthUrl = "http://127.0.0.1:$Port"
+  if ($Emulator) {
+    $apiBase = "http://10.0.2.2:$Port"
+  } else {
+    $apiBase = "http://$(Get-LanIp):$Port"
+  }
+}
+
+if (-not (Test-ApiHealth -Url $healthUrl)) {
+  Write-Host "Aviso: $healthUrl/health não respondeu. Sobe o ciatec-core (src/api, porta $Port) antes de jogar." -ForegroundColor Yellow
 }
 
 $flutterDevice = Resolve-FlutterDevice
