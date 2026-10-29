@@ -72,22 +72,25 @@ class MatchUploader {
   Future<void> sendPose(
     List<Map<String, dynamic>> frames,
     Future<void> Function(Map<String, dynamic> chunk) post,
-  ) async {
-    final chunks = chunked(frames, maxItemsPerUpload);
-    for (var i = 0; i < chunks.length; i++) {
-      final body = {'chunkIndex': i, 'frames': chunks[i]};
-      await send(body, () => post(body), chunk: true);
-    }
-  }
+  ) => sendIndexed(frames, 'chunkIndex', 'frames', post);
 
   /// `{batchIndex, events}` per 500 events; nothing when [events] is empty.
   Future<void> sendEvents(
     List<Map<String, dynamic>> events,
     Future<void> Function(Map<String, dynamic> batch) post,
-  ) async {
-    final batches = chunked(events, maxItemsPerUpload);
-    for (var i = 0; i < batches.length; i++) {
-      final body = {'batchIndex': i, 'events': batches[i]};
+  ) => sendIndexed(events, 'batchIndex', 'events', post);
+
+  /// `{[indexKey]: i, [itemsKey]: […]}` per [size] items, index from 0.
+  Future<void> sendIndexed(
+    List<Map<String, dynamic>> items,
+    String indexKey,
+    String itemsKey,
+    Future<void> Function(Map<String, dynamic> body) post, {
+    int size = maxItemsPerUpload,
+  }) async {
+    final parts = chunked(items, size);
+    for (var i = 0; i < parts.length; i++) {
+      final body = {indexKey: i, itemsKey: parts[i]};
       await send(body, () => post(body), chunk: true);
     }
   }

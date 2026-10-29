@@ -38,28 +38,25 @@ void main() {
         at: t0.add(const Duration(milliseconds: 150)),
       );
 
-      final payload = buf.finish(
-        gameMode: 'leftHand',
-        status: 'completed',
-        at: t0.add(const Duration(seconds: 1)),
-      );
+      buf.close(at: t0.add(const Duration(seconds: 1)));
+      buf.addEvent('late', at: t0.add(const Duration(seconds: 2)));
 
-      final started = payload['started_offset_ms'] as int;
-      final ended = payload['ended_offset_ms'] as int;
+      final started = buf.startedOffsetMs!;
+      final ended = buf.endedOffsetMs!;
 
       expect((started, ended), (0, 1000));
+      expect(buf.isActive, isFalse);
+      expect(buf.events.last['type'], 'game_start');
       expect(buf.poseSamples.first['offsetMs'], 100);
       final pose = buf.poseSamples.first['pose'] as List;
       expect((pose.single as Map)['p'], 0.8);
       expect(buf.poseSamples.first, isNot(contains('landmarks')));
       expect(buf.sensorSamples.first['offsetMs'], 120);
 
-      final eventOffsets = (payload['events'] as List)
-          .map((e) => (e as Map)['offsetMs'] as int)
-          .toList();
+      final eventOffsets = buf.events.map((e) => e['offsetMs'] as int).toList();
       expect(eventOffsets, containsAll([0, 150, 1000]));
       expect(eventOffsets.every((t) => t >= started && t <= ended), isTrue);
-      expectNoEpoch(payload);
+      expectNoEpoch([buf.events, buf.poseSamples, buf.sensorSamples]);
     });
 
     test('throttling treats offset 0 as a real sample', () {
