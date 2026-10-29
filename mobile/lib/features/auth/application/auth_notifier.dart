@@ -45,6 +45,7 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier(this._api, this._storage)
     : super(const AuthState(status: AuthStatus.unknown)) {
+    _api.onUnauthorized = _refreshAfterUnauthorized;
     restore();
   }
 
@@ -54,9 +55,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
   static const _accessKey = 'access_token';
   static const _refreshKey = 'refresh_token';
 
+  /// The refresh in flight. The server rotates the refresh token, so two
+  /// concurrent refreshes would revoke each other: callers share this one.
+  Future<String?>? _refreshing;
+
+  /// Cold start: the stored access token may have expired, so the session is
+  /// reopened with the refresh token. A rejected refresh ends the session; a
+  /// network failure keeps the tokens for the next start.
   Future<void> restore() async {
-    final token = await _storage.read(key: _accessKey);
-    if (token == null || token.isEmpty) {
+    final stored = await _storage.read(key: _refreshKey);
+    if (stored == null || stored.isEmpty) {
+      state = const AuthState(status: AuthStatus.unauthenticated);
+      return;
+    }
+    final token = await _refreshOnce();
+    if (token == null) {
       state = const AuthState(status: AuthStatus.unauthenticated);
       return;
     }
@@ -65,12 +78,45 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = AuthState(
         status: AuthStatus.authenticated,
         user: user,
-        accessToken: token,
+        accessToken: state.accessToken ?? token,
       );
     } catch (_) {
-      await _clearTokens();
       state = const AuthState(status: AuthStatus.unauthenticated);
     }
+  }
+
+  Future<String?> _refreshAfterUnauthorized(String rejectedToken) async {
+    final current = state.accessToken;
+    if (current != null && current != rejectedToken) return current;
+    return _refreshOnce();
+  }
+
+  Future<String?> _refreshOnce() {
+    return _refreshing ??= _refresh().whenComplete(() => _refreshing = null);
+  }
+
+  Future<String?> _refresh() async {
+    final refreshToken = await _storage.read(key: _refreshKey);
+    if (refreshToken == null || refreshToken.isEmpty) {
+      await _endSession();
+      return null;
+    }
+    try {
+      final tokens = await _api.refresh(refreshToken);
+      await _persistTokens(tokens);
+      state = state.copyWith(accessToken: tokens.accessToken);
+      return tokens.accessToken;
+    } on ApiException catch (e) {
+      if (e.statusCode == 401) await _endSession();
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _endSession() async {
+    await _clearTokens();
+    state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
   Future<void> login(String email, String password) async {
@@ -126,9 +172,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> _persist(AuthSession session) async {
-    await _storage.write(key: _accessKey, value: session.tokens.accessToken);
-    await _storage.write(key: _refreshKey, value: session.tokens.refreshToken);
+  Future<void> _persist(AuthSession session) => _persistTokens(session.tokens);
+
+  Future<void> _persistTokens(AuthTokens tokens) async {
+    await _storage.write(key: _accessKey, value: tokens.accessToken);
+    await _storage.write(key: _refreshKey, value: tokens.refreshToken);
   }
 
   Future<void> _clearTokens() async {

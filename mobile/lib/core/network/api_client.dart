@@ -4,10 +4,17 @@ import 'package:http/http.dart' as http;
 import 'package:msupperlimbs/core/config/api_config.dart';
 import 'package:msupperlimbs/features/auth/data/models/auth_models.dart';
 
+/// Called when an authenticated request gets 401 with [rejectedToken].
+/// Returns the access token to retry with, or null when the session is gone.
+typedef UnauthorizedHandler = Future<String?> Function(String rejectedToken);
+
 class ApiClient {
   ApiClient({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
+
+  /// Set by the auth layer; without it a 401 is returned as is.
+  UnauthorizedHandler? onUnauthorized;
 
   static const _json = {'Content-Type': 'application/json'};
 
@@ -39,15 +46,26 @@ class ApiClient {
     return AuthSession.fromJson(_decode(response));
   }
 
+  /// Rotates the pair: the old refresh token stops working.
+  Future<AuthTokens> refresh(String refreshToken) async {
+    final response = await _client.post(
+      _uri('/auth/refresh'),
+      headers: _json,
+      body: jsonEncode({'refreshToken': refreshToken}),
+    );
+    return AuthTokens.fromJson(_decode(response));
+  }
+
   Future<AuthUser> me(String accessToken) async {
-    final response = await _client.get(
-      _uri('/auth/me'),
-      headers: _authHeaders(accessToken),
+    final response = await _authed(
+      accessToken,
+      (auth) => _client.get(_uri('/auth/me'), headers: auth),
     );
     return AuthUser.fromJson(_decode(response));
   }
 
-  /// Revokes [refreshToken] on the server (204).
+  /// Revokes [refreshToken] on the server (204). Not retried on 401: a
+  /// refresh would rotate the pair and revoke [refreshToken] anyway.
   Future<void> logout({
     required String accessToken,
     required String refreshToken,
@@ -64,9 +82,9 @@ class ApiClient {
     String path, {
     required String accessToken,
   }) async {
-    final response = await _client.get(
-      _uri(path),
-      headers: _authHeaders(accessToken),
+    final response = await _authed(
+      accessToken,
+      (auth) => _client.get(_uri(path), headers: auth),
     );
     return _decode(response);
   }
@@ -76,10 +94,13 @@ class ApiClient {
     required String accessToken,
     required Map<String, dynamic> body,
   }) async {
-    final response = await _client.put(
-      _uri(path),
-      headers: {..._authHeaders(accessToken), ..._json},
-      body: jsonEncode(body),
+    final response = await _authed(
+      accessToken,
+      (auth) => _client.put(
+        _uri(path),
+        headers: {...auth, ..._json},
+        body: jsonEncode(body),
+      ),
     );
     return _decode(response);
   }
@@ -89,12 +110,29 @@ class ApiClient {
     required String accessToken,
     Map<String, dynamic>? body,
   }) async {
-    final response = await _client.post(
-      _uri(path),
-      headers: {..._authHeaders(accessToken), ..._json},
-      body: body == null ? null : jsonEncode(body),
+    final response = await _authed(
+      accessToken,
+      (auth) => _client.post(
+        _uri(path),
+        headers: {...auth, ..._json},
+        body: body == null ? null : jsonEncode(body),
+      ),
     );
     return _decode(response);
+  }
+
+  /// Sends with [accessToken]; on 401 asks [onUnauthorized] for a new token
+  /// and retries once. A second 401 is returned to the caller.
+  Future<http.Response> _authed(
+    String accessToken,
+    Future<http.Response> Function(Map<String, String> auth) send,
+  ) async {
+    final response = await send(_authHeaders(accessToken));
+    final handler = onUnauthorized;
+    if (response.statusCode != 401 || handler == null) return response;
+    final fresh = await handler(accessToken);
+    if (fresh == null) return response;
+    return send(_authHeaders(fresh));
   }
 
   Map<String, String> _authHeaders(String accessToken) => {
