@@ -84,19 +84,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'This email is already registered. Log in instead.';
 
   @override
-  String get auth_loginSuccessful => 'Login successful!';
-
-  @override
   String get auth_invalidCredentials => 'Invalid email or password.';
-
-  @override
-  String get auth_accountCreatedSuccess => 'Account created successfully!';
-
-  @override
-  String get auth_failedToCreateAccount => 'Failed to create account.';
-
-  @override
-  String get auth_missingToken => 'Not authenticated';
 
   @override
   String get error_validation =>

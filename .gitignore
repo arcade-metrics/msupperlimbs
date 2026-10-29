@@ -5,12 +5,8 @@
 .env.*
 !.env.example
 
-# Python
-backend/.venv/
-backend/**/__pycache__/
-backend/**/*.pyc
-backend/*.db
-backend/**/*.db
+# Old FastAPI backend, removed in v3 (tag v2.0.0); local copies stay untracked
+/backend/
 
 # IDE / OS
 .idea/
