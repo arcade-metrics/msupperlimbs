@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:msupperlimbs/features/auth/application/auth_notifier.dart';
-import 'package:msupperlimbs/features/fnose/data/fnose_match_repository.dart';
 import 'package:msupperlimbs/features/fnose/data/fnose_settings_repository.dart';
 import 'package:msupperlimbs/features/fnose/data/models/fnose_settings.dart';
 
@@ -29,8 +28,4 @@ final fnoseAdvSettingsProvider = FutureProvider<FnoseAdvSettings>((ref) async {
     throw StateError('Not authenticated');
   }
   return ref.watch(fnoseSettingsRepositoryProvider).getAdvSettings(token);
-});
-
-final fnoseMatchRepositoryProvider = Provider<FnoseMatchRepository>((ref) {
-  return FnoseMatchRepository(ref.watch(apiClientProvider));
 });

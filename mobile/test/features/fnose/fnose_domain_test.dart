@@ -358,6 +358,49 @@ void main() {
         ),
       ], t0.add(const Duration(milliseconds: 400)));
       expect(engine.leftSpark, FnoseSparkState.idle);
+
+      final result = engine.result;
+      expect(
+        result.sparkEvents
+            .map(
+              (e) => (e['offsetMs'], e['side'], e['fromState'], e['toState']),
+            )
+            .toList(),
+        [
+          (20, 'left', 'idle', 'armed'),
+          (40, 'left', 'armed', 'fire'),
+          (400, 'left', 'fire', 'idle'),
+        ],
+        reason: 'only changes, not one per frame',
+      );
+      final hit = result.hitEvents.single;
+      expect(hit['eventType'], 'hit');
+      expect(hit['offsetMs'], 40);
+      expect(hit['side'], 'left');
+      expect(hit['angleDeg'], isA<double>());
+      expect((hit['tipX'], hit['tipY']), (target.dx, target.dy));
+      expect((hit['noseX'], hit['noseY']), (0.5, 0.3));
+      expect(hit['tipScreenX'], closeTo(target.dx * 1000, 1e-9));
+      expect(hit['tipScreenY'], closeTo(target.dy * 500, 1e-9));
+      expect(hit['targetX'], closeTo(target.dx * 1000, 1e-9));
+      expect(hit['targetRadius'], closeTo(0.225 * 500, 1e-9));
+      expect(hit.keys, isNot(contains('insideTarget')));
+      expect(hit.keys, isNot(contains('gameMode')));
+      expect(result.toMetricsJson(), {
+        'totalLeftSparks': 1,
+        'totalRightSparks': 0,
+        'totalSparks': 1,
+        'avgDistance': isA<double>(),
+        'avgAngle': isA<double>(),
+        'isValidMatch': true,
+      });
+      final offsets = [for (final e in result.events) e['offsetMs'] as int];
+      expect(offsets, orderedEquals([...offsets]..sort()));
+      expect(result.events.map((e) => e['eventType']).toSet(), {
+        'phase',
+        'spark',
+        'hit',
+      });
     });
 
     test('setup phases go to calibration, match phases to the match', () {
@@ -421,7 +464,11 @@ void main() {
         pregame.events,
         pregame.finishBody,
       ]);
-      expectNoEpoch(result.toMatchPayload(deviceModel: 'test'));
+      expectNoEpoch([
+        result.events,
+        result.poseSamples,
+        result.toMetricsJson(),
+      ]);
     });
   });
 

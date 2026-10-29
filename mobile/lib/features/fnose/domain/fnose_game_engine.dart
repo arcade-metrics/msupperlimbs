@@ -5,6 +5,7 @@ import 'package:msupperlimbs/features/fnose/domain/arm_movement_tracker.dart';
 import 'package:msupperlimbs/features/fnose/domain/fnose_calibration.dart';
 import 'package:msupperlimbs/features/fnose/domain/fnose_types.dart';
 import 'package:msupperlimbs/features/fnose/domain/pregame_telemetry_buffer.dart';
+import 'package:msupperlimbs/features/match/domain/event_timeline.dart';
 import 'package:msupperlimbs/features/motion/domain/landmark_point.dart';
 import 'package:msupperlimbs/features/motion/domain/motion_data_contract.dart';
 import 'package:msupperlimbs/features/motion/domain/screen_mapper.dart';
@@ -117,7 +118,8 @@ class FnoseGameEngine {
   /// [telemetry] (calibração).
   final List<Map<String, dynamic>> _phaseEvents = [];
   final List<Map<String, dynamic>> _poseSamples = [];
-  final List<Map<String, dynamic>> _touchEvents = [];
+  final List<Map<String, dynamic>> _sparkEvents = [];
+  final List<Map<String, dynamic>> _hitEvents = [];
   final List<double> _angles = [];
   final List<double> _distances = [];
 
@@ -184,9 +186,8 @@ class FnoseGameEngine {
       avgAngle: avgAngle,
       phaseEvents: List.unmodifiable(_phaseEvents),
       poseSamples: List.unmodifiable(_poseSamples),
-      touchEvents: List.unmodifiable(_touchEvents),
-      settingsSnapshot: _settings.toUpdateJson(),
-      advSettingsSnapshot: Map<String, dynamic>.from(_adv.data),
+      sparkEvents: List.unmodifiable(_sparkEvents),
+      hitEvents: List.unmodifiable(_hitEvents),
       screenWidth: screenWidth,
       screenHeight: screenHeight,
       imageWidth: imageWidth,
@@ -689,7 +690,8 @@ class FnoseGameEngine {
     _right.reset();
     _poseFrameCounter = 0;
     _poseSamples.clear();
-    _touchEvents.clear();
+    _sparkEvents.clear();
+    _hitEvents.clear();
     _angles.clear();
     _distances.clear();
     lastHitMark = null;
@@ -727,14 +729,32 @@ class FnoseGameEngine {
       _tickArm(isLeft: true, byIndex: byIndex, tracker: _left, now: now);
     } else {
       _left.reset();
-      leftSpark = FnoseSparkState.idle;
+      _setSpark(isLeft: true, FnoseSparkState.idle, now);
     }
 
     if (rightActive) {
       _tickArm(isLeft: false, byIndex: byIndex, tracker: _right, now: now);
     } else {
       _right.reset();
-      rightSpark = FnoseSparkState.idle;
+      _setSpark(isLeft: false, FnoseSparkState.idle, now);
+    }
+  }
+
+  /// Sets one arm's spark state; a change becomes a `spark` event.
+  void _setSpark(FnoseSparkState next, DateTime at, {required bool isLeft}) {
+    final current = isLeft ? leftSpark : rightSpark;
+    if (next == current) return;
+    _sparkEvents.add({
+      'offsetMs': _clock.offsetMs(at),
+      'eventType': 'spark',
+      'side': isLeft ? 'left' : 'right',
+      'fromState': current.name,
+      'toState': next.name,
+    });
+    if (isLeft) {
+      leftSpark = next;
+    } else {
+      rightSpark = next;
     }
   }
 
@@ -771,11 +791,7 @@ class FnoseGameEngine {
     final fireUntil = isLeft ? _leftFireUntil : _rightFireUntil;
     if (fireUntil != null) {
       if (now.isBefore(fireUntil)) {
-        if (isLeft) {
-          leftSpark = FnoseSparkState.fire;
-        } else {
-          rightSpark = FnoseSparkState.fire;
-        }
+        _setSpark(isLeft: isLeft, FnoseSparkState.fire, now);
         notify();
         return;
       }
@@ -806,6 +822,7 @@ class FnoseGameEngine {
             mapper.distance(tipScreen, fingerTargetCenter) <= fingerTargetRadius;
         if (inside) {
           _registerTargetHit(
+            mapper,
             isLeft: isLeft,
             tip: index,
             tipScreen: tipScreen,
@@ -826,15 +843,12 @@ class FnoseGameEngine {
       }
     }
 
-    if (isLeft) {
-      leftSpark = spark;
-    } else {
-      rightSpark = spark;
-    }
+    _setSpark(isLeft: isLeft, spark, now);
     notify();
   }
 
-  void _registerTargetHit({
+  void _registerTargetHit(
+    ScreenMapper mapper, {
     required bool isLeft,
     required LandmarkPoint tip,
     required Offset tipScreen,
@@ -853,20 +867,24 @@ class FnoseGameEngine {
     final dx = tip.x - nose.x;
     final dy = tip.y - nose.y;
     _distances.add((Offset(dx, dy)).distance);
-    _touchEvents.add({
+    // tip/nose in the camera image; tip (with the calibration offset) and
+    // target in screen pixels, exactly as the hit was decided.
+    final tipPx = mapper.toPixels(tipScreen);
+    final targetPx = mapper.toPixels(fingerTargetCenter);
+    _hitEvents.add({
       'offsetMs': _clock.offsetMs(now),
-      'isLeft': isLeft,
-      'angle': angle,
-      'screen': {'x': tipScreen.dx, 'y': tipScreen.dy},
-      'target': {
-        'x': fingerTargetCenter.dx,
-        'y': fingerTargetCenter.dy,
-        'r': fingerTargetRadius,
-      },
+      'eventType': 'hit',
+      'side': isLeft ? 'left' : 'right',
+      'angleDeg': angle,
+      'tipX': tip.x,
+      'tipY': tip.y,
       'noseX': nose.x,
       'noseY': nose.y,
-      'insideTarget': true,
-      'gameMode': _settings.gameMode,
+      'tipScreenX': tipPx.dx,
+      'tipScreenY': tipPx.dy,
+      'targetX': targetPx.dx,
+      'targetY': targetPx.dy,
+      'targetRadius': mapper.radiusToPixels(fingerTargetRadius),
     });
   }
 }
@@ -890,9 +908,8 @@ class FnoseGameResult {
     this.avgAngle,
     this.phaseEvents = const [],
     this.poseSamples = const [],
-    this.touchEvents = const [],
-    this.settingsSnapshot,
-    this.advSettingsSnapshot,
+    this.sparkEvents = const [],
+    this.hitEvents = const [],
     this.screenWidth,
     this.screenHeight,
     this.imageWidth,
@@ -916,9 +933,12 @@ class FnoseGameResult {
   final double? avgAngle;
   final List<Map<String, dynamic>> phaseEvents;
   final List<Map<String, dynamic>> poseSamples;
-  final List<Map<String, dynamic>> touchEvents;
-  final Map<String, dynamic>? settingsSnapshot;
-  final Map<String, dynamic>? advSettingsSnapshot;
+
+  /// Spark state changes per arm (`idle` → `armed` → `fire` → `idle`).
+  final List<Map<String, dynamic>> sparkEvents;
+
+  /// One per spark counted.
+  final List<Map<String, dynamic>> hitEvents;
   final int? screenWidth;
   final int? screenHeight;
   final int? imageWidth;
@@ -949,9 +969,8 @@ class FnoseGameResult {
       avgAngle: avgAngle,
       phaseEvents: phaseEvents,
       poseSamples: poseSamples,
-      touchEvents: touchEvents,
-      settingsSnapshot: settingsSnapshot,
-      advSettingsSnapshot: advSettingsSnapshot,
+      sparkEvents: sparkEvents,
+      hitEvents: hitEvents,
       screenWidth: screenWidth,
       screenHeight: screenHeight,
       imageWidth: imageWidth,
@@ -964,56 +983,17 @@ class FnoseGameResult {
     );
   }
 
-  Map<String, dynamic> toMatchPayload({String? deviceModel}) {
-    return {
-      'data_contract_version': MotionDataContract.version,
-      'device_model': ?deviceModel,
-      'total_time': totalTime,
-      'game_mode': gameMode,
-      'total_left_sparks': totalLeftSparks,
-      'total_right_sparks': totalRightSparks,
-      'total_sparks': totalSparks,
-      'avg_distance': avgDistance,
-      'avg_angle': avgAngle,
-      'settings_snapshot': settingsSnapshot,
-      'adv_settings_snapshot': advSettingsSnapshot,
-      'screen_width': screenWidth,
-      'screen_height': screenHeight,
-      'image_width': imageWidth,
-      'image_height': imageHeight,
-      'is_valid_match': totalSparks > 0,
-      'duration_ms': durationMs,
-      'phase_events': phaseEvents,
-      'pose_samples': poseSamples,
-      'touch_events': touchEvents,
-      'calibration_run_id': ?calibrationRunId,
-      'preview': preview,
-    };
-  }
-}
+  /// `phase`, `spark` and `hit` on one timeline, ordered by `offsetMs`.
+  List<Map<String, dynamic>> get events =>
+      byOffset([phaseEvents, sparkEvents, hitEvents]);
 
-class FnoseMatchSaveResponse {
-  const FnoseMatchSaveResponse({
-    required this.id,
-    required this.sessionId,
-    required this.totalSparks,
-    required this.poseChunkCount,
-    required this.touchChunkCount,
-  });
-
-  final String id;
-  final String sessionId;
-  final int totalSparks;
-  final int poseChunkCount;
-  final int touchChunkCount;
-
-  factory FnoseMatchSaveResponse.fromJson(Map<String, dynamic> json) {
-    return FnoseMatchSaveResponse(
-      id: json['id'] as String,
-      sessionId: json['session_id'] as String,
-      totalSparks: json['total_sparks'] as int? ?? 0,
-      poseChunkCount: json['pose_chunk_count'] as int? ?? 0,
-      touchChunkCount: json['touch_chunk_count'] as int? ?? 0,
-    );
-  }
+  /// Body of `POST /msupperlimbs-fnose/matches/{id}/metrics`.
+  Map<String, dynamic> toMetricsJson() => {
+    'totalLeftSparks': totalLeftSparks,
+    'totalRightSparks': totalRightSparks,
+    'totalSparks': totalSparks,
+    'avgDistance': ?avgDistance,
+    'avgAngle': ?avgAngle,
+    'isValidMatch': totalSparks > 0,
+  };
 }

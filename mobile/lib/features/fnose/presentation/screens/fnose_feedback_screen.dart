@@ -60,7 +60,7 @@ class FnoseFeedbackScreen extends StatelessWidget {
                   Text(l10n.fnose_feedback_notSaved),
                 Text(
                   l10n.fnose_feedback_logs(
-                    r.touchEvents.length,
+                    r.hitEvents.length,
                     r.poseSamples.length,
                   ),
                   style: Theme.of(context).textTheme.bodySmall,
