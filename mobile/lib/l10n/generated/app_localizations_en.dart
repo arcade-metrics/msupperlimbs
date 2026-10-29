@@ -67,19 +67,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_haveAccountQuestion => 'Already have an account? Login';
 
   @override
-  String get auth_consentCheckbox => 'I accept the data use consent';
-
-  @override
-  String get auth_consentRequired => 'Consent is required';
-
-  @override
   String get auth_nameRequired => 'Enter your name';
 
   @override
   String get auth_emailInvalid => 'Invalid email';
 
   @override
-  String get auth_passwordMin => 'Minimum 6 characters';
+  String get auth_passwordRequired => 'Enter your password';
+
+  @override
+  String get auth_passwordPolicy =>
+      'At least 8 characters, with 1 uppercase letter and 1 digit';
+
+  @override
+  String get auth_emailInUse =>
+      'This email is already registered. Log in instead.';
 
   @override
   String get auth_loginSuccessful => 'Login successful!';
@@ -95,6 +97,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get auth_missingToken => 'Not authenticated';
+
+  @override
+  String get error_validation =>
+      'Some fields are invalid. Check them and try again.';
+
+  @override
+  String get error_sessionExpired => 'Your session has expired. Log in again.';
+
+  @override
+  String get error_accountInactive => 'This account is inactive.';
+
+  @override
+  String get error_network =>
+      'No connection to the server. Check your internet and try again.';
+
+  @override
+  String get error_server =>
+      'The server is unavailable. Try again in a moment.';
+
+  @override
+  String get error_generic => 'Something went wrong. Try again.';
 
   @override
   String get home_title => 'Home';

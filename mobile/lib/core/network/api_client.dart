@@ -9,6 +9,8 @@ class ApiClient {
 
   final http.Client _client;
 
+  static const _json = {'Content-Type': 'application/json'};
+
   Uri _uri(String path) =>
       Uri.parse('${ApiConfig.baseUrl}${ApiConfig.apiPrefix}$path');
 
@@ -16,19 +18,13 @@ class ApiClient {
     required String email,
     required String password,
     required String name,
-    required bool consent,
   }) async {
     final response = await _client.post(
       _uri('/auth/register'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': email,
-        'password': password,
-        'name': name,
-        'consent': consent,
-      }),
+      headers: _json,
+      body: jsonEncode({'email': email, 'password': password, 'name': name}),
     );
-    return _parseAuthSession(response);
+    return AuthSession.fromJson(_decode(response));
   }
 
   Future<AuthSession> login({
@@ -37,10 +33,10 @@ class ApiClient {
   }) async {
     final response = await _client.post(
       _uri('/auth/login'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _json,
       body: jsonEncode({'email': email, 'password': password}),
     );
-    return _parseAuthSession(response);
+    return AuthSession.fromJson(_decode(response));
   }
 
   Future<AuthUser> me(String accessToken) async {
@@ -48,10 +44,20 @@ class ApiClient {
       _uri('/auth/me'),
       headers: _authHeaders(accessToken),
     );
-    if (response.statusCode != 200) {
-      throw ApiException(_errorMessage(response));
-    }
-    return AuthUser.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    return AuthUser.fromJson(_decode(response));
+  }
+
+  /// Revokes [refreshToken] on the server (204).
+  Future<void> logout({
+    required String accessToken,
+    required String refreshToken,
+  }) async {
+    final response = await _client.post(
+      _uri('/auth/logout'),
+      headers: {..._authHeaders(accessToken), ..._json},
+      body: jsonEncode({'refreshToken': refreshToken}),
+    );
+    _decode(response);
   }
 
   Future<Map<String, dynamic>> getJson(
@@ -62,10 +68,7 @@ class ApiClient {
       _uri(path),
       headers: _authHeaders(accessToken),
     );
-    if (response.statusCode != 200) {
-      throw ApiException(_errorMessage(response));
-    }
-    return jsonDecode(response.body) as Map<String, dynamic>;
+    return _decode(response);
   }
 
   Future<Map<String, dynamic>> putJson(
@@ -75,16 +78,10 @@ class ApiClient {
   }) async {
     final response = await _client.put(
       _uri(path),
-      headers: {
-        ..._authHeaders(accessToken),
-        'Content-Type': 'application/json',
-      },
+      headers: {..._authHeaders(accessToken), ..._json},
       body: jsonEncode(body),
     );
-    if (response.statusCode != 200) {
-      throw ApiException(_errorMessage(response));
-    }
-    return jsonDecode(response.body) as Map<String, dynamic>;
+    return _decode(response);
   }
 
   Future<Map<String, dynamic>> postJson(
@@ -94,45 +91,55 @@ class ApiClient {
   }) async {
     final response = await _client.post(
       _uri(path),
-      headers: {
-        ..._authHeaders(accessToken),
-        'Content-Type': 'application/json',
-      },
+      headers: {..._authHeaders(accessToken), ..._json},
       body: body == null ? null : jsonEncode(body),
     );
-    if (response.statusCode != 200) {
-      throw ApiException(_errorMessage(response));
-    }
-    return jsonDecode(response.body) as Map<String, dynamic>;
+    return _decode(response);
   }
 
   Map<String, String> _authHeaders(String accessToken) => {
     'Authorization': 'Bearer $accessToken',
   };
 
-  AuthSession _parseAuthSession(http.Response response) {
-    if (response.statusCode != 200) {
-      throw ApiException(_errorMessage(response));
+  /// Any 2xx is a success; 204 and other empty bodies decode to `{}`.
+  Map<String, dynamic> _decode(http.Response response) {
+    final status = response.statusCode;
+    if (status < 200 || status >= 300) {
+      throw ApiException.fromResponse(response);
     }
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    return AuthSession.fromJson(body);
-  }
-
-  String _errorMessage(http.Response response) {
-    try {
-      final body = jsonDecode(response.body);
-      if (body is Map && body['detail'] != null) {
-        return body['detail'].toString();
-      }
-    } catch (_) {}
-    return 'Request failed (${response.statusCode})';
+    if (response.body.isEmpty) return const {};
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 }
 
+/// Error returned by ciatec-core: `{success: false, code, message}`.
+///
+/// [code] is null when the body is not in that format (proxy errors, 5xx
+/// HTML pages); the UI then falls back to a generic message.
 class ApiException implements Exception {
-  ApiException(this.message);
+  ApiException({required this.statusCode, this.code, required this.message});
+
+  factory ApiException.fromResponse(http.Response response) {
+    String? code;
+    String? message;
+    try {
+      final body = jsonDecode(response.body);
+      if (body is Map) {
+        code = body['code'] as String?;
+        message = (body['message'] ?? body['detail'])?.toString();
+      }
+    } catch (_) {}
+    return ApiException(
+      statusCode: response.statusCode,
+      code: code,
+      message: message ?? 'Request failed (${response.statusCode})',
+    );
+  }
+
+  final int statusCode;
+  final String? code;
   final String message;
 
   @override
-  String toString() => message;
+  String toString() => code == null ? message : '$code: $message';
 }

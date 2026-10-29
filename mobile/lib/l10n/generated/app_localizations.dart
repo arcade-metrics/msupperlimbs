@@ -206,18 +206,6 @@ abstract class AppLocalizations {
   /// **'Already have an account? Login'**
   String get auth_haveAccountQuestion;
 
-  /// No description provided for @auth_consentCheckbox.
-  ///
-  /// In en, this message translates to:
-  /// **'I accept the data use consent'**
-  String get auth_consentCheckbox;
-
-  /// No description provided for @auth_consentRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Consent is required'**
-  String get auth_consentRequired;
-
   /// No description provided for @auth_nameRequired.
   ///
   /// In en, this message translates to:
@@ -230,11 +218,23 @@ abstract class AppLocalizations {
   /// **'Invalid email'**
   String get auth_emailInvalid;
 
-  /// No description provided for @auth_passwordMin.
+  /// No description provided for @auth_passwordRequired.
   ///
   /// In en, this message translates to:
-  /// **'Minimum 6 characters'**
-  String get auth_passwordMin;
+  /// **'Enter your password'**
+  String get auth_passwordRequired;
+
+  /// No description provided for @auth_passwordPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'At least 8 characters, with 1 uppercase letter and 1 digit'**
+  String get auth_passwordPolicy;
+
+  /// No description provided for @auth_emailInUse.
+  ///
+  /// In en, this message translates to:
+  /// **'This email is already registered. Log in instead.'**
+  String get auth_emailInUse;
 
   /// No description provided for @auth_loginSuccessful.
   ///
@@ -265,6 +265,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not authenticated'**
   String get auth_missingToken;
+
+  /// No description provided for @error_validation.
+  ///
+  /// In en, this message translates to:
+  /// **'Some fields are invalid. Check them and try again.'**
+  String get error_validation;
+
+  /// No description provided for @error_sessionExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Your session has expired. Log in again.'**
+  String get error_sessionExpired;
+
+  /// No description provided for @error_accountInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'This account is inactive.'**
+  String get error_accountInactive;
+
+  /// No description provided for @error_network.
+  ///
+  /// In en, this message translates to:
+  /// **'No connection to the server. Check your internet and try again.'**
+  String get error_network;
+
+  /// No description provided for @error_server.
+  ///
+  /// In en, this message translates to:
+  /// **'The server is unavailable. Try again in a moment.'**
+  String get error_server;
+
+  /// No description provided for @error_generic.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Try again.'**
+  String get error_generic;
 
   /// No description provided for @home_title.
   ///
