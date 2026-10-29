@@ -97,7 +97,6 @@ class RapidGameEngine {
       poseSamples: List.unmodifiable(_poseSamples),
       avgPulseHeight: avgPulse,
       maxPulseHeight: _maxPulseHeight,
-      settingsSnapshot: _settings.toUpdateJson(),
       screenWidth: screenWidth,
       screenHeight: screenHeight,
       imageWidth: imageWidth,
@@ -230,7 +229,11 @@ class RapidGameEngine {
     _poseSamples.add({
       'offsetMs': clock.offsetMs(now),
       'phase': phase.name,
-      'hands': [for (final p in hands) p.toKinematicJson()],
+      // The API requires `hand`; a missing index is hand 0, as for taps.
+      'hands': [
+        for (final p in hands)
+          {...p.toKinematicJson(), 'hand': p.handIndex ?? 0},
+      ],
     });
   }
 

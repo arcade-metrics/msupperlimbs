@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:msupperlimbs/core/config/app_info.dart';
 import 'package:msupperlimbs/core/network/api_error_messages.dart';
 import 'package:msupperlimbs/core/widgets/brand_logo.dart';
 import 'package:msupperlimbs/core/widgets/locale_switcher.dart';
@@ -22,8 +23,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _name = TextEditingController();
   bool _isRegister = false;
   bool _busy = false;
-
-  static const _appVersion = '0.1.0';
 
   @override
   void dispose() {
@@ -99,7 +98,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          l10n.app_versionLabel(_appVersion),
+                          l10n.app_versionLabel(AppInfo.version),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 10,

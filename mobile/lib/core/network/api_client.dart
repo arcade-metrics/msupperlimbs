@@ -125,12 +125,13 @@ class ApiClient {
     String path, {
     required String accessToken,
     Map<String, dynamic>? body,
+    Map<String, String> headers = const {},
   }) async {
     final response = await _authed(
       accessToken,
       (auth) => _client.post(
         _uri(path),
-        headers: {...auth, ..._json},
+        headers: {...auth, ..._json, ...headers},
         body: body == null ? null : jsonEncode(body),
       ),
     );

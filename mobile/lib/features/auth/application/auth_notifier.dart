@@ -55,6 +55,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
   static const _accessKey = 'access_token';
   static const _refreshKey = 'refresh_token';
 
+  /// Current access token, for work that outlives the screen that started
+  /// it (a widget's `ref` is gone after dispose).
+  String? get accessToken => state.accessToken;
+
   /// The refresh in flight. The server rotates the refresh token, so two
   /// concurrent refreshes would revoke each other: callers share this one.
   Future<String?>? _refreshing;
