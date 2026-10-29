@@ -19,6 +19,7 @@ import 'package:msupperlimbs/features/fnose/presentation/widgets/fnose_pregame_o
 import 'package:msupperlimbs/features/fnose/presentation/widgets/fnose_nose_alignment_overlay.dart';
 import 'package:msupperlimbs/features/fnose/presentation/widgets/fnose_target_overlay.dart';
 import 'package:msupperlimbs/features/match/application/match_providers.dart';
+import 'package:msupperlimbs/features/match/application/match_uploader.dart';
 import 'package:msupperlimbs/features/match/domain/match_context.dart';
 import 'package:msupperlimbs/features/motion/data/camera_frame_converter.dart';
 import 'package:msupperlimbs/features/motion/data/mediapipe_service.dart';
@@ -63,12 +64,20 @@ class _FnoseGameScreenState extends ConsumerState<FnoseGameScreen> {
     super.initState();
     final auth = ref.read(authProvider.notifier);
     final matches = ref.read(matchApiProvider);
+    final queue = ref.read(pendingUploadsProvider);
     _calibration = FnoseCalibrationFlow(
       matches,
       ref.read(calibrationApiProvider),
       () => auth.accessToken,
+      userId: () => auth.userId,
+      queue: queue,
     );
-    _match = FnoseMatchFlow(matches, () => auth.accessToken);
+    _match = FnoseMatchFlow(
+      matches,
+      () => auth.accessToken,
+      userId: () => auth.userId,
+      queue: queue,
+    );
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     SystemChrome.setPreferredOrientations(const [
       DeviceOrientation.landscapeLeft,
@@ -283,7 +292,10 @@ class _FnoseGameScreenState extends ConsumerState<FnoseGameScreen> {
     try {
       result = await _match.complete(result, _matchContext(engine));
     } catch (e) {
-      result = result.copyWith(saveError: apiErrorMessage(l10n, e));
+      result = result.copyWith(
+        saveError: apiErrorMessage(l10n, e),
+        queued: e is UploadQueuedException,
+      );
     }
 
     if (!mounted) return;

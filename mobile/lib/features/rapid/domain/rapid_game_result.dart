@@ -21,6 +21,7 @@ class RapidGameResult {
     this.matchId,
     this.sessionId,
     this.saveError,
+    this.queued = false,
   });
 
   final int tapCount;
@@ -45,6 +46,9 @@ class RapidGameResult {
   final String? sessionId;
   final String? saveError;
 
+  /// Not sent yet but kept on the device; [saveError] says so.
+  final bool queued;
+
   double get tapsPerSecond =>
       durationSeconds <= 0 ? 0 : tapCount / durationSeconds;
 
@@ -54,6 +58,7 @@ class RapidGameResult {
     String? matchId,
     String? sessionId,
     String? saveError,
+    bool? queued,
     bool clearSaveError = false,
   }) {
     return RapidGameResult(
@@ -76,6 +81,7 @@ class RapidGameResult {
       matchId: matchId ?? this.matchId,
       sessionId: sessionId ?? this.sessionId,
       saveError: clearSaveError ? null : (saveError ?? this.saveError),
+      queued: queued ?? this.queued,
     );
   }
 

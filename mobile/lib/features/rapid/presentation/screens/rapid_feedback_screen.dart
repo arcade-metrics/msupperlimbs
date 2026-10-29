@@ -34,6 +34,8 @@ class RapidFeedbackScreen extends StatelessWidget {
                     'Guardado · match ${r.matchId!.substring(0, 8)}…',
                     style: const TextStyle(color: Colors.green),
                   )
+                else if (r.queued)
+                  Text(r.saveError!, textAlign: TextAlign.center)
                 else if (r.saveError != null)
                   Text(
                     'Falha ao guardar: ${r.saveError}',

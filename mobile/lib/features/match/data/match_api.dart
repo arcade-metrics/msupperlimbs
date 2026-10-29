@@ -39,7 +39,12 @@ class MatchApi {
     final resolving = _resolveLevel(accessToken, slug);
     _levels[slug] = resolving;
     unawaited(
-      resolving.then<void>((_) {}, onError: (Object _) => _levels.remove(slug)),
+      resolving.then<void>(
+        (_) {},
+        onError: (Object _) {
+          _levels.remove(slug);
+        },
+      ),
     );
     return resolving;
   }

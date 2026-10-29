@@ -302,6 +302,12 @@ abstract class AppLocalizations {
   /// **'Something went wrong. Try again.'**
   String get error_generic;
 
+  /// No description provided for @match_keptOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'No connection. The match is kept on this device and will be sent when you are back online.'**
+  String get match_keptOffline;
+
   /// No description provided for @home_title.
   ///
   /// In en, this message translates to:

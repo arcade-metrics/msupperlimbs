@@ -1,62 +1,63 @@
 import 'package:msupperlimbs/core/config/app_info.dart';
+import 'package:msupperlimbs/features/calibration/application/calibration_job.dart';
 import 'package:msupperlimbs/features/calibration/data/calibration_api.dart';
 import 'package:msupperlimbs/features/fnose/domain/fnose_calibration.dart';
 import 'package:msupperlimbs/features/match/application/match_uploader.dart';
+import 'package:msupperlimbs/features/match/application/pending_uploads.dart';
 import 'package:msupperlimbs/features/match/data/match_api.dart';
 
-/// Uploads one FNose setup run to `/calibrations`: open → sensor chunks →
-/// pose chunks → event batches → finish. The finish goes last because the
-/// server refuses any new write after it.
+/// Uploads one FNose setup run to `/calibrations` ([CalibrationJobRunner]).
+///
+/// If it cannot finish now and a [queue] is given, the run is kept on the
+/// device and [upload] throws [UploadQueuedException]; the match is then
+/// created without the link.
 class FnoseCalibrationFlow {
   FnoseCalibrationFlow(
-    this._matches,
-    this._calibrations,
-    this._accessToken, {
+    MatchApi matches,
+    CalibrationApi calibrations,
+    String? Function() accessToken, {
+    String? Function()? userId,
+    this._queue,
     MatchUploader Function()? uploader,
-  }) : _newUploader = uploader ?? MatchUploader.new;
+  }) : _runner = CalibrationJobRunner(
+         matches,
+         calibrations,
+         accessToken,
+         uploader: uploader,
+       ),
+       _userId = userId ?? (() => null);
 
   static const slug = 'msupperlimbs-fnose';
-  static const maxSensorSamplesPerChunk = 1000;
 
-  final MatchApi _matches;
-  final CalibrationApi _calibrations;
-  final String? Function() _accessToken;
-  final MatchUploader Function() _newUploader;
-
-  String get _token {
-    final token = _accessToken();
-    if (token == null) throw StateError('Not authenticated');
-    return token;
-  }
+  final CalibrationJobRunner _runner;
+  final String? Function() _userId;
+  final PendingUploads? _queue;
 
   /// Returns the run id. A completed run can then be linked to the match
   /// (`calibration_run_id`); an abandoned one stays without a match.
   Future<String> upload(FnoseCalibrationRun run) async {
-    final level = await _matches.gameLevel(_token, slug);
-    final runId = await _calibrations.open(_token, {
-      'gameId': level.gameId,
-      'appVersion': AppInfo.version,
-      'platform': AppInfo.platform,
-      ...run.openBody,
-    });
-    final up = _newUploader();
-    await up.sendIndexed(
-      run.sensorSamples,
-      'chunkIndex',
-      'samples',
-      (chunk) => _calibrations.sensor(_token, runId, chunk),
-      size: maxSensorSamplesPerChunk,
+    final job = PendingCalibration(
+      id: newIdempotencyKey(),
+      userId: _userId() ?? '',
+      slug: slug,
+      createdAt: DateTime.now().toUtc(),
+      openBody: {
+        'appVersion': AppInfo.version,
+        'platform': AppInfo.platform,
+        ...run.openBody,
+      },
+      sensorSamples: run.sensorSamples,
+      poseFrames: run.poseFrames,
+      events: run.events,
+      finishBody: run.finishBody,
     );
-    await up.sendPose(
-      run.poseFrames,
-      (chunk) => _calibrations.pose(_token, runId, chunk),
-    );
-    await up.sendEvents(
-      run.events,
-      (batch) => _calibrations.events(_token, runId, batch),
-    );
-    final finish = run.finishBody;
-    await up.send(finish, () => _calibrations.finish(_token, runId, finish));
-    return runId;
+    try {
+      return await _runner.run(job);
+    } catch (e) {
+      final queue = _queue;
+      if (queue == null || job.userId.isEmpty || !canRetryLater(e)) rethrow;
+      await queue.keep(job.toJson());
+      throw UploadQueuedException(e);
+    }
   }
 }

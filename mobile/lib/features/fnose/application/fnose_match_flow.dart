@@ -1,6 +1,7 @@
 import 'package:msupperlimbs/features/fnose/domain/fnose_game_engine.dart';
 import 'package:msupperlimbs/features/match/application/match_flow.dart';
 import 'package:msupperlimbs/features/match/application/match_uploader.dart';
+import 'package:msupperlimbs/features/match/application/pending_uploads.dart';
 import 'package:msupperlimbs/features/match/data/match_api.dart';
 
 /// An FNose match on ciatec-core ([MatchFlow] for `msupperlimbs-fnose`),
@@ -9,8 +10,17 @@ class FnoseMatchFlow {
   FnoseMatchFlow(
     MatchApi api,
     String? Function() accessToken, {
+    String? Function()? userId,
+    PendingUploads? queue,
     MatchUploader Function()? uploader,
-  }) : _flow = MatchFlow(api, accessToken, slug: slug, uploader: uploader);
+  }) : _flow = MatchFlow(
+         api,
+         accessToken,
+         slug: slug,
+         userId: userId,
+         queue: queue,
+         uploader: uploader,
+       );
 
   static const slug = 'msupperlimbs-fnose';
 

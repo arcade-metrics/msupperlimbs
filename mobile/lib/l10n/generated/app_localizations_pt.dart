@@ -120,6 +120,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get error_generic => 'Algo deu errado. Tente de novo.';
 
   @override
+  String get match_keptOffline =>
+      'Sem conexão. A partida ficou guardada neste aparelho e será enviada quando houver internet.';
+
+  @override
   String get home_title => 'Início';
 
   @override

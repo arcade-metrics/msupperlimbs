@@ -47,6 +47,7 @@
   "error_network": "Sem conexão com o servidor. Verifique a internet e tente de novo.",
   "error_server": "O servidor está indisponível. Tente de novo em instantes.",
   "error_generic": "Algo deu errado. Tente de novo.",
+  "match_keptOffline": "Sem conexão. A partida ficou guardada neste aparelho e será enviada quando houver internet.",
 
   "home_title": "Início",
   "home_fingerToNoseChallenge": "Desafio Dedo-ao-Nariz",

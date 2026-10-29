@@ -3,11 +3,13 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:msupperlimbs/core/network/api_client.dart';
+import 'package:msupperlimbs/features/match/application/match_uploader.dart';
 import 'package:msupperlimbs/l10n/generated/app_localizations.dart';
 
 /// User-facing message for [error], from the ciatec-core `code` when there
 /// is one. Codes without a dedicated message fall back by HTTP status.
 String apiErrorMessage(AppLocalizations l10n, Object error) {
+  if (error is UploadQueuedException) return l10n.match_keptOffline;
   if (error is ApiException) {
     switch (error.code) {
       case 'INVALID_CREDENTIALS':

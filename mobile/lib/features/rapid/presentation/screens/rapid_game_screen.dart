@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:msupperlimbs/core/network/api_error_messages.dart';
 import 'package:msupperlimbs/features/auth/application/auth_notifier.dart';
 import 'package:msupperlimbs/features/match/application/match_providers.dart';
+import 'package:msupperlimbs/features/match/application/match_uploader.dart';
 import 'package:msupperlimbs/features/match/domain/match_context.dart';
 import 'package:msupperlimbs/features/motion/data/camera_frame_converter.dart';
 import 'package:msupperlimbs/features/motion/data/mediapipe_service.dart';
@@ -56,7 +57,12 @@ class _RapidGameScreenState extends ConsumerState<RapidGameScreen> {
   void initState() {
     super.initState();
     final auth = ref.read(authProvider.notifier);
-    _flow = RapidMatchFlow(ref.read(matchApiProvider), () => auth.accessToken);
+    _flow = RapidMatchFlow(
+      ref.read(matchApiProvider),
+      () => auth.accessToken,
+      userId: () => auth.userId,
+      queue: ref.read(pendingUploadsProvider),
+    );
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     SystemChrome.setPreferredOrientations(const [
       DeviceOrientation.landscapeLeft,
@@ -244,7 +250,10 @@ class _RapidGameScreenState extends ConsumerState<RapidGameScreen> {
     try {
       result = await _flow.complete(result, _matchContext(engine));
     } catch (e) {
-      result = result.copyWith(saveError: apiErrorMessage(l10n, e));
+      result = result.copyWith(
+        saveError: apiErrorMessage(l10n, e),
+        queued: e is UploadQueuedException,
+      );
     }
 
     if (!mounted) return;
