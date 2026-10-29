@@ -3,15 +3,17 @@ import 'package:msupperlimbs/features/fnose/domain/pregame_telemetry_buffer.dart
 import 'package:msupperlimbs/features/motion/domain/landmark_point.dart';
 import 'package:msupperlimbs/features/motion/domain/session_clock.dart';
 
+import '../../support/no_epoch.dart';
+
 void main() {
   group('PregameTelemetryBuffer clock sync', () {
-    test('pose sensor and events share same t timeline', () {
+    test('pose sensor and events share the run offset timeline', () {
+      final t0 = DateTime.utc(2026, 9, 18, 12, 0, 0);
       final buf = PregameTelemetryBuffer(
-        clock: SessionClock(source: () => DateTime.utc(2026, 9, 18, 12)),
+        clock: SessionClock(source: () => t0),
         poseMinIntervalMs: 0,
         sensorMinIntervalMs: 0,
       );
-      final t0 = DateTime.utc(2026, 9, 18, 12, 0, 0);
       buf.start(at: t0);
 
       buf.addPose(const [
@@ -42,23 +44,42 @@ void main() {
         at: t0.add(const Duration(seconds: 1)),
       );
 
-      final started = payload['started_at_ms'] as int;
-      final ended = payload['ended_at_ms'] as int;
+      final started = payload['started_offset_ms'] as int;
+      final ended = payload['ended_offset_ms'] as int;
 
-      expect(started, t0.millisecondsSinceEpoch);
-      expect(buf.poseSamples.first['t'], t0.millisecondsSinceEpoch + 100);
+      expect((started, ended), (0, 1000));
+      expect(buf.poseSamples.first['offsetMs'], 100);
       final pose = buf.poseSamples.first['pose'] as List;
       expect((pose.single as Map)['p'], 0.8);
       expect(buf.poseSamples.first, isNot(contains('landmarks')));
-      expect(buf.sensorSamples.first['t'], t0.millisecondsSinceEpoch + 120);
+      expect(buf.sensorSamples.first['offsetMs'], 120);
 
-      final eventTs = (payload['events'] as List)
-          .map((e) => (e as Map)['t'] as int)
+      final eventOffsets = (payload['events'] as List)
+          .map((e) => (e as Map)['offsetMs'] as int)
           .toList();
-      expect(eventTs, contains(t0.millisecondsSinceEpoch));
-      expect(eventTs, contains(t0.millisecondsSinceEpoch + 150));
-      expect(eventTs, contains(t0.millisecondsSinceEpoch + 1000));
-      expect(eventTs.every((t) => t >= started && t <= ended), isTrue);
+      expect(eventOffsets, containsAll([0, 150, 1000]));
+      expect(eventOffsets.every((t) => t >= started && t <= ended), isTrue);
+      expectNoEpoch(payload);
+    });
+
+    test('throttling treats offset 0 as a real sample', () {
+      final t0 = DateTime.utc(2026, 9, 18, 12);
+      final buf = PregameTelemetryBuffer(
+        clock: SessionClock(source: () => t0),
+        sensorMinIntervalMs: 50,
+      );
+      buf.start(at: t0);
+
+      for (final ms in [0, 20, 49, 50, 60, 100]) {
+        buf.addSensor(
+          ax: 0,
+          ay: 0,
+          az: 9.8,
+          at: t0.add(Duration(milliseconds: ms)),
+        );
+      }
+
+      expect(buf.sensorSamples.map((s) => s['offsetMs']), [0, 50, 100]);
     });
   });
 }

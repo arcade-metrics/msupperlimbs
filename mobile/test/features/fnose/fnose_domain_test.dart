@@ -8,6 +8,8 @@ import 'package:msupperlimbs/features/fnose/domain/fnose_types.dart';
 import 'package:msupperlimbs/features/motion/domain/landmark_point.dart';
 import 'package:msupperlimbs/features/motion/domain/session_clock.dart';
 
+import '../../support/no_epoch.dart';
+
 void main() {
   SessionClock clock() => SessionClock(source: () => DateTime.utc(2026, 1, 1));
   test('device attitude becomes still after consecutive equal samples', () {
@@ -286,15 +288,12 @@ void main() {
     });
 
     test('spark scores after nose arm then target touch', () {
-      final engine = FnoseGameEngine(
-        settings: settings(),
-        adv: adv(),
-        clock: clock(),
-      )
-        ..screenWidth = 1000
-        ..screenHeight = 500
-        ..previewRect = const Rect.fromLTWH(0, 0, 1000, 500)
-        ..phase = FnoseGamePhase.countdown;
+      final engine =
+          FnoseGameEngine(settings: settings(), adv: adv(), clock: clock())
+            ..screenWidth = 1000
+            ..screenHeight = 500
+            ..previewRect = const Rect.fromLTWH(0, 0, 1000, 500)
+            ..phase = FnoseGamePhase.countdown;
       engine.beginPlaying();
       final t0 = DateTime.utc(2026, 1, 1);
 
@@ -361,6 +360,64 @@ void main() {
         ),
       ], t0.add(const Duration(milliseconds: 400)));
       expect(engine.leftSpark, FnoseSparkState.idle);
+    });
+
+    test('setup phases go to calibration, match phases to the match', () {
+      final t0 = DateTime.utc(2026, 1, 1);
+      var now = t0;
+      DateTime at(int ms) => t0.add(Duration(milliseconds: ms));
+      final engine =
+          FnoseGameEngine(
+              settings: settings(),
+              adv: adv(),
+              clock: SessionClock(source: () => now),
+            )
+            ..screenWidth = 1000
+            ..screenHeight = 500
+            ..previewRect = const Rect.fromLTWH(0, 0, 1000, 500);
+
+      for (final ms in [0, 120, 130, 250, 260, 380]) {
+        engine.onSensorStatus(still: true, pitch: 0, roll: 0, now: at(ms));
+      }
+      for (final ms in [400, 520, 530, 650]) {
+        engine.onPose(poseCore(), at(ms));
+      }
+      expect(engine.phase, FnoseGamePhase.countdown);
+      final pregame = engine.closePregame(status: 'completed', at: at(3650))!;
+      now = at(3650);
+      engine.onCountdownFinished();
+      for (var s = 1; s <= 5; s++) {
+        now = at(3650 + s * 1000);
+        engine.onSecondElapsed();
+      }
+
+      final setup = [
+        for (final e in engine.telemetry.events)
+          if (e['type'] == 'phase')
+            (e['offsetMs'], (e['data'] as Map)['toPhase']),
+      ];
+      expect(setup, [
+        (0, 'deviceStill'),
+        (120, 'deviceRoll'),
+        (250, 'devicePitch'),
+        (380, 'alignNose'),
+        (520, 'calibrateFinger'),
+      ]);
+
+      final result = engine.result;
+      expect(
+        result.phaseEvents
+            .map((e) => (e['offsetMs'], e['fromPhase'], e['toPhase']))
+            .toList(),
+        [
+          (650, 'calibrateFinger', 'countdown'),
+          (3650, 'countdown', 'playing'),
+          (8650, 'playing', 'finished'),
+        ],
+      );
+      expect(result.durationMs, 5000);
+      expectNoEpoch(pregame);
+      expectNoEpoch(result.toMatchPayload(deviceModel: 'test'));
     });
 
     test('legacy bothHands setting falls back to leftHand', () {

@@ -4,8 +4,10 @@ class RapidGameResult {
   const RapidGameResult({
     required this.tapCount,
     required this.durationSeconds,
+    this.durationMs = 0,
     required this.gameMode,
     required this.visualizationType,
+    this.phaseEvents = const [],
     this.tapEvents = const [],
     this.pulseEvents = const [],
     this.poseSamples = const [],
@@ -16,8 +18,6 @@ class RapidGameResult {
     this.screenHeight,
     this.imageWidth,
     this.imageHeight,
-    this.startedAtMs,
-    this.endedAtMs,
     this.preview,
     this.matchId,
     this.sessionId,
@@ -26,8 +26,12 @@ class RapidGameResult {
 
   final int tapCount;
   final int durationSeconds;
+
+  /// Tempo jogado medido (fase `playing` → `finished`), em ms.
+  final int durationMs;
   final String gameMode;
   final String visualizationType;
+  final List<Map<String, dynamic>> phaseEvents;
   final List<Map<String, dynamic>> tapEvents;
   final List<Map<String, dynamic>> pulseEvents;
   final List<Map<String, dynamic>> poseSamples;
@@ -38,8 +42,6 @@ class RapidGameResult {
   final int? screenHeight;
   final int? imageWidth;
   final int? imageHeight;
-  final int? startedAtMs;
-  final int? endedAtMs;
   final Map<String, double>? preview;
   final String? matchId;
   final String? sessionId;
@@ -59,8 +61,10 @@ class RapidGameResult {
     return RapidGameResult(
       tapCount: tapCount,
       durationSeconds: durationSeconds,
+      durationMs: durationMs,
       gameMode: gameMode,
       visualizationType: visualizationType,
+      phaseEvents: phaseEvents,
       tapEvents: tapEvents,
       pulseEvents: pulseEvents,
       poseSamples: poseSamples,
@@ -71,8 +75,6 @@ class RapidGameResult {
       screenHeight: screenHeight,
       imageWidth: imageWidth,
       imageHeight: imageHeight,
-      startedAtMs: startedAtMs,
-      endedAtMs: endedAtMs,
       preview: preview,
       matchId: matchId ?? this.matchId,
       sessionId: sessionId ?? this.sessionId,
@@ -96,10 +98,10 @@ class RapidGameResult {
       'screen_height': screenHeight,
       'image_width': imageWidth,
       'image_height': imageHeight,
-      'started_at_ms': startedAtMs,
-      'ended_at_ms': endedAtMs,
+      'duration_ms': durationMs,
       'preview': preview,
       'is_valid_match': tapCount > 0,
+      'phase_events': phaseEvents,
       'tap_events': tapEvents,
       'pulse_events': pulseEvents,
       'pose_samples': poseSamples,

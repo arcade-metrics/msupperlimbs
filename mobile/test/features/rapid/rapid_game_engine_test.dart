@@ -5,6 +5,8 @@ import 'package:msupperlimbs/features/rapid/data/models/rapid_settings.dart';
 import 'package:msupperlimbs/features/rapid/domain/rapid_game_engine.dart';
 import 'package:msupperlimbs/features/rapid/domain/rapid_game_phase.dart';
 
+import '../../support/no_epoch.dart';
+
 RapidSettings _settings({int totalTime = 5}) {
   return RapidSettings(
     userId: 'u',
@@ -86,18 +88,25 @@ void main() {
       t0.add(const Duration(milliseconds: 20)),
     );
     expect(engine.tapCount, 1);
-    final eventT = t0
-        .add(const Duration(milliseconds: 20))
-        .millisecondsSinceEpoch;
-    expect(engine.result.tapEvents.single['t'], eventT);
+    // 12 h + 20 ms after the clock's t0 (2026-01-01 00:00).
+    const eventOffset = 12 * 3600 * 1000 + 20;
+    expect(engine.result.tapEvents.single, {
+      'offsetMs': eventOffset,
+      'eventType': 'tap',
+      'handIndex': 0,
+      'finger': 'tip',
+      'pulseHeightBefore': isA<double>(),
+      'pulseHeightAfter': isA<double>(),
+    });
     expect(
-      engine.result.pulseEvents
-          .where((event) => event['eventType'] == 'impulse')
-          .single['t'],
-      eventT,
+      engine.result.pulseEvents.map((e) => e['eventType']),
+      everyElement('pulse_tick'),
+      reason: 'the impulse is carried by the tap',
     );
     expect(
-      engine.result.poseSamples.any((sample) => sample['t'] == eventT),
+      engine.result.poseSamples.any(
+        (sample) => sample['offsetMs'] == eventOffset,
+      ),
       isTrue,
     );
 
@@ -106,6 +115,52 @@ void main() {
     engine.onSecondElapsed();
     expect(engine.phase, RapidGamePhase.finished);
     expect(engine.result.tapCount, 1);
+  });
+
+  test('phase events and played time use the run clock', () {
+    final t0 = DateTime.utc(2026, 1, 1);
+    var now = t0;
+    DateTime at(int ms) => t0.add(Duration(milliseconds: ms));
+    final engine = RapidGameEngine(
+      settings: _settings(totalTime: 2),
+      clock: SessionClock(source: () => now),
+      handHoldDuration: const Duration(milliseconds: 100),
+    );
+
+    engine.onHands(_handClose(tipDx: 0.2), at(500));
+    engine.onHands(const [], at(550));
+    engine.onHands(_handClose(tipDx: 0.2), at(600));
+    engine.onHands(_handClose(tipDx: 0.2), at(800));
+    expect(engine.phase, RapidGamePhase.countdown);
+    now = at(3800);
+    engine.onCountdownFinished();
+    now = at(4800);
+    engine.onSecondElapsed();
+    now = at(5800);
+    engine.onSecondElapsed();
+    expect(engine.phase, RapidGamePhase.finished);
+
+    final result = engine.result;
+    expect(
+      result.phaseEvents
+          .map((e) => (e['offsetMs'], e['fromPhase'], e['toPhase']))
+          .toList(),
+      [
+        (0, null, 'waitingHand'),
+        (500, 'waitingHand', 'holdingHand'),
+        (550, 'holdingHand', 'waitingHand'),
+        (600, 'waitingHand', 'holdingHand'),
+        (800, 'holdingHand', 'countdown'),
+        (3800, 'countdown', 'playing'),
+        (5800, 'playing', 'finished'),
+      ],
+    );
+    expect(result.phaseEvents.first, isNot(contains('fromPhase')));
+    expect(result.durationMs, 2000);
+
+    final payload = result.toMatchPayload(deviceModel: 'test');
+    expect(payload['duration_ms'], 2000);
+    expectNoEpoch(payload);
   });
 
   test('losing hand during hold resets to waiting', () {
