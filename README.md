@@ -4,36 +4,33 @@ App de avaliação de membros superiores (Rapid e FNose): Flutter + MediaPipe,
 com a API do [ciatec-core](https://github.com/ciatec-org/ciatec-core).
 
 Legado em `old/` (somente referência, fora do git). Documentação em `docs/`.
-O backend FastAPI próprio da v2 foi removido na v3 (fica na tag `v2.0.0`).
 
 ## Estrutura
 
 ```
 mobile/    # Flutter
 docs/      # Arquitetura, fluxos, deploy, inventário do legado
-scripts/   # dev local, verificação, ADB wireless
+scripts/   # correr o app, verificação, ADB wireless, db-check
 ```
 
 ## API
 
-Por omissão o app usa `https://api.ciatec.org/api/v1`. O contrato
+O app usa sempre `https://api.ciatec.org/api/v1`. O contrato
 (login, settings, calibração, partidas, telemetria) está em
 `docs/games/msupperlimbs/MSUPPERLIMBS-API.md` no ciatec-core.
 Deploy e release: [docs/DEPLOY.md](docs/DEPLOY.md).
 
 Verificação: `.\scripts\check.ps1` (`flutter analyze` + `flutter test test/features/`)
 
-## Dev local (Flutter contra o ciatec-core)
+## Correr o app
 
-Com o ciatec-core a correr localmente (`src/api`, porta 8000):
+O app usa sempre a API de produção (`https://api.ciatec.org`); não há API local.
 
 ```powershell
-.\scripts\dev-local.ps1
+.\scripts\run.ps1
 ```
 
-Usa o IP da máquina na LAN (`API_BASE_URL`) e, se existir, o device do `adb-wireless`.  
-Emulador: `.\scripts\dev-local.ps1 -Emulator`  
-Outra API: `.\scripts\dev-local.ps1 -ApiBaseUrl https://api.ciatec.org`
+Usa o device do `adb-wireless`, se estiver ligado. Outro device: `-Device <id>`.
 
 ## Idiomas (i18n)
 

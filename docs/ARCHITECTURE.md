@@ -9,9 +9,7 @@
 | ML | MediaPipe nativo (pose + hands), Android-first |
 | Auth | Email/senha + JWT do ciatec-core (access curto + refresh rotativo) |
 
-Até à v2 o repositório tinha um backend FastAPI próprio (`backend/`). Na v3
-o app passou a falar só com o ciatec-core e esse backend foi removido; o
-código fica na tag `v2.0.0`. O contrato que o app implementa está em
+O contrato que o app implementa está em
 `docs/games/msupperlimbs/MSUPPERLIMBS-API.md` no ciatec-core.
 
 ## Repositório
