@@ -11,7 +11,8 @@ App Flutter de avaliação de membros superiores (jogos Rapid e FNose) com Media
 
 - `mobile/` — Flutter (Riverpod + go_router). Código em `mobile/lib/{core,features,l10n}`; features: auth, calibration, fnose, home, match, motion, rapid.
 - `docs/` — arquitetura, fluxos (AppFlow), deploy, inventário do legado.
-- `scripts/` — `check.ps1`, `run.ps1`, `adb-wireless.ps1`, `db-check.ps1`.
+- `scripts/` — `check.ps1`, `run.ps1`, `adb-wireless.ps1`, `db-check.ps1`, `report.ps1`.
+- `queries/` + `tools/reports/` — consultas SQL e relatórios **somente leitura** (fora do app); exportam para `output/` (gitignored, dados de participantes). Uso: `.\scripts\report.ps1 list`. Nunca escrever no banco.
 - `old/` — legado, **somente leitura**, fora do git. Preservar regras de negócio, não copiar código.
 
 ## Comandos

@@ -19,5 +19,10 @@ Thumbs.db
 **/Flutter/
 /old
 
+# Relatórios: venv local e output (dados de participantes, nunca no git)
+tools/.venv/
+output/
+
 # ADB wireless local state
 scripts/adb-wireless.config.json
+queries/resultados/
