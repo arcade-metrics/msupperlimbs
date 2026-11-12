@@ -7,18 +7,13 @@ repositório só tem o app. O deploy da API é feito no ciatec-core.
 
 - Flutter stable (`mobile/.fvmrc`)
 - Android SDK (o app é Android-first)
-- Para testar localmente: o ciatec-core a correr (`src/api`, porta 8000)
 
 ## API usada pelo app
 
-| Ambiente | Como |
-|----------|------|
-| Produção | por omissão: `https://api.ciatec.org` (`ApiConfig.baseUrl`) |
-| Local | `.\scripts\dev-local.ps1` → `http://<IP-do-PC>:8000` (ou `10.0.2.2` no emulador) |
-| Outra | `--dart-define=API_BASE_URL=https://…` |
+Só produção: `https://api.ciatec.org` (`ApiConfig.baseUrl`). Não há API
+local nem `--dart-define` para trocar a URL; o app só aceita HTTPS.
 
-Para testar o refresh de token, use `JWT_EXPIRES_IN=60` no `.env` da API do
-ciatec-core local.
+Para correr no device: `.\scripts\run.ps1`.
 
 ## Release
 
@@ -32,7 +27,6 @@ ciatec-core local.
    flutter build apk --release
    ```
 
-   Sem `--dart-define`, o build aponta para produção.
 3. Tag `vX.Y.Z` e GitHub Release no merge para `main`.
 
 MediaPipe: modelos `.task` em `android/app/src/main/assets/`.

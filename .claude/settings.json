@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(./old/backend/.env)",
+      "Read(./old/backend/.env.*)",
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Edit(./old/backend/.env)",
+      "Edit(./old/backend/.env.*)",
+      "Edit(./**/.env)",
+      "Edit(./**/.env.*)",
+      "Read(./scripts/adb-wireless.config.json)"
+    ],
+    "allow": [
+      "Read(./**/.env.example)"
+    ]
+  }
+}
