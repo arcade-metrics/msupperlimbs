@@ -80,7 +80,9 @@ class _FnoseSettingsScreenState extends ConsumerState<FnoseSettingsScreen> {
         _draft = null;
         _ensureDraft(restored);
       });
-      ref.invalidate(fnoseSettingsProvider);
+      ref
+        ..invalidate(fnoseSettingsProvider)
+        ..invalidate(fnoseAdvSettingsProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.fnose_settings_defaultsRestored)),
@@ -113,63 +115,67 @@ class _FnoseSettingsScreenState extends ConsumerState<FnoseSettingsScreen> {
         return Scaffold(
           appBar: AppBar(title: Text(l10n.fnose_settings_title)),
           body: SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () => context.go('/fnose-adv-settings'),
-                  icon: const Icon(Icons.tune),
-                  label: Text(l10n.fnose_settings_advancedSettings),
-                ),
-                const SizedBox(height: 16),
-                SwitchListTile(
-                  title: Text(l10n.fnose_settings_showInstructionVideo),
-                  value: draft.showInfoVideo,
-                  onChanged: (v) =>
-                      setState(() => _draft = draft.copyWith(showInfoVideo: v)),
-                ),
-                const SizedBox(height: 16),
-                _numberField(
-                  l10n.fnose_settings_totalTime,
-                  _controllers['totalTime']!,
-                  (v) {
-                    final n = int.tryParse(v);
-                    if (n != null) {
-                      setState(() => _draft = draft.copyWith(totalTime: n));
-                    }
-                  },
-                ),
-                _numberField(
-                  l10n.fnose_settings_targetSize,
-                  _controllers['targetSize']!,
-                  (v) {
-                    final n = double.tryParse(v);
-                    if (n != null) {
-                      setState(() => _draft = draft.copyWith(targetSize: n));
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: _saving ? null : _save,
-                  child: _saving
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(l10n.common_save),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: _saving ? null : _restore,
-                  child: Text(l10n.restoreDefaults),
-                ),
-                TextButton(
-                  onPressed: () => context.go('/fnose-intro'),
-                  child: Text(l10n.common_cancel),
-                ),
-              ],
+            child: Scrollbar(
+              thumbVisibility: true,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => context.go('/fnose-adv-settings'),
+                    icon: const Icon(Icons.tune),
+                    label: Text(l10n.fnose_settings_advancedSettings),
+                  ),
+                  const SizedBox(height: 16),
+                  SwitchListTile(
+                    title: Text(l10n.fnose_settings_showInstructionVideo),
+                    value: draft.showInfoVideo,
+                    onChanged: (v) => setState(
+                      () => _draft = draft.copyWith(showInfoVideo: v),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _numberField(
+                    l10n.fnose_settings_totalTime,
+                    _controllers['totalTime']!,
+                    (v) {
+                      final n = int.tryParse(v);
+                      if (n != null) {
+                        setState(() => _draft = draft.copyWith(totalTime: n));
+                      }
+                    },
+                  ),
+                  _numberField(
+                    l10n.fnose_settings_targetSize,
+                    _controllers['targetSize']!,
+                    (v) {
+                      final n = double.tryParse(v);
+                      if (n != null) {
+                        setState(() => _draft = draft.copyWith(targetSize: n));
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: _saving ? null : _save,
+                    child: _saving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(l10n.common_save),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: _saving ? null : _restore,
+                    child: Text(l10n.restoreDefaults),
+                  ),
+                  TextButton(
+                    onPressed: () => context.go('/fnose-intro'),
+                    child: Text(l10n.common_cancel),
+                  ),
+                ],
+              ),
             ),
           ),
         );

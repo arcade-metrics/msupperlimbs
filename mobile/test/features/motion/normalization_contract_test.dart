@@ -47,10 +47,31 @@ void main() {
     expect(MediaPipeService.anatomicalPoseIndex(19, mirrored: false), 19);
   });
 
-  test('session clock exposes one UTC epoch timeline', () {
-    final at = DateTime.utc(2026, 9, 19, 12, 30);
-    final clock = SessionClock(source: () => at);
-    expect(clock.startedAt, at);
-    expect(clock.nowMs(), at.millisecondsSinceEpoch);
+  test('session clock counts offsets from the run start', () {
+    var now = DateTime.utc(2026, 9, 19, 12, 30);
+    final clock = SessionClock(source: () => now);
+    expect(clock.startedAt, now);
+    expect(clock.offsetMs(), 0);
+
+    now = now.add(const Duration(milliseconds: 1500));
+    expect(clock.offsetMs(), 1500);
+    expect(
+      clock.offsetMs(clock.startedAt.add(const Duration(seconds: 2))),
+      2000,
+    );
+    expect(
+      clock.offsetMs(clock.startedAt.subtract(const Duration(seconds: 1))),
+      0,
+      reason: 'never negative',
+    );
+  });
+
+  test('default session clock is monotonic from zero', () async {
+    final clock = SessionClock();
+    final first = clock.offsetMs();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    final second = clock.offsetMs();
+    expect(first, inInclusiveRange(0, 5));
+    expect(second, greaterThanOrEqualTo(first + 15));
   });
 }

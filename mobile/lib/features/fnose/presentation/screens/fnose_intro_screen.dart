@@ -80,7 +80,7 @@ class FnoseIntroScreen extends ConsumerWidget {
                         if (token == null) return;
                         await ref
                             .read(fnoseSettingsRepositoryProvider)
-                            .patchSettings(token, {'show_info_video': !value});
+                            .patchSettings(token, {'showInfoVideo': !value});
                         ref.invalidate(fnoseSettingsProvider);
                       },
                     ),

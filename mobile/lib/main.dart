@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:msupperlimbs/core/application/locale_provider.dart';
 import 'package:msupperlimbs/core/router/app_router.dart';
 import 'package:msupperlimbs/core/theme/app_theme.dart';
+import 'package:msupperlimbs/features/match/application/match_providers.dart';
 import 'package:msupperlimbs/l10n/generated/app_localizations.dart';
 
 void main() {
@@ -18,6 +19,7 @@ class MsUpperLimbsApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     final locale = ref.watch(localeProvider);
+    ref.watch(pendingUploadsFlushProvider);
 
     return MaterialApp.router(
       title: 'MS Upper Limbs',

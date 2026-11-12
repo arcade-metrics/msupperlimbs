@@ -2,8 +2,10 @@ import 'dart:ui';
 
 import 'package:msupperlimbs/features/fnose/data/models/fnose_settings.dart';
 import 'package:msupperlimbs/features/fnose/domain/arm_movement_tracker.dart';
+import 'package:msupperlimbs/features/fnose/domain/fnose_calibration.dart';
 import 'package:msupperlimbs/features/fnose/domain/fnose_types.dart';
 import 'package:msupperlimbs/features/fnose/domain/pregame_telemetry_buffer.dart';
+import 'package:msupperlimbs/features/match/domain/event_timeline.dart';
 import 'package:msupperlimbs/features/motion/domain/landmark_point.dart';
 import 'package:msupperlimbs/features/motion/domain/motion_data_contract.dart';
 import 'package:msupperlimbs/features/motion/domain/screen_mapper.dart';
@@ -16,9 +18,7 @@ class FnoseGameEngine {
     required SessionClock clock,
     this.poseSampleEveryNFrames = 1,
     this._onChanged,
-  }) : _settings = settings.gameMode == 'bothHands'
-           ? settings.copyWith(gameMode: 'leftHand')
-           : settings,
+  }) : _settings = settings,
        _adv = adv,
        _clock = clock,
        telemetry = PregameTelemetryBuffer(clock: clock),
@@ -51,6 +51,8 @@ class FnoseGameEngine {
          ),
        ) {
     telemetry.start();
+    telemetry.addPhase(to: phase.name);
+    _enterStep(phase, _clock.now());
   }
 
   final FnoseSettings _settings;
@@ -81,7 +83,9 @@ class FnoseGameEngine {
   Offset? fingerCalibrationOffset;
   Offset? calibratedFingerPosition;
   Offset? calibrationTargetPosition;
-  String? pregameRunId;
+
+  /// `/calibrations` run of this pre-game, once uploaded.
+  String? calibrationRunId;
 
   int? screenWidth;
   int? screenHeight;
@@ -99,11 +103,23 @@ class FnoseGameEngine {
   DateTime? _fingerOutsideSince;
   bool _pregameClosed = false;
 
+  /// Setup steps reached so far, in the order first entered.
+  final _steps = <FnoseGamePhase, SetupStepRecord>{};
+  double _holdSumA = 0;
+  double _holdSumB = 0;
+  int _holdSamples = 0;
+
   DateTime? _leftFireUntil;
   DateTime? _rightFireUntil;
+  int? _playingStartedMs;
+  int? _finishedMs;
 
+  /// `countdown`, `playing` e `finished`; as fases de setup ficam em
+  /// [telemetry] (calibração).
+  final List<Map<String, dynamic>> _phaseEvents = [];
   final List<Map<String, dynamic>> _poseSamples = [];
-  final List<Map<String, dynamic>> _touchEvents = [];
+  final List<Map<String, dynamic>> _sparkEvents = [];
+  final List<Map<String, dynamic>> _hitEvents = [];
   final List<double> _angles = [];
   final List<double> _distances = [];
 
@@ -145,6 +161,13 @@ class FnoseGameEngine {
     return total == 0 ? 0 : (done / total).clamp(0.0, 1.0);
   }
 
+  /// Tempo jogado de verdade: da fase `playing` até `finished` (ou agora).
+  int get playedMs {
+    final started = _playingStartedMs;
+    if (started == null) return 0;
+    return (_finishedMs ?? _clock.offsetMs()) - started;
+  }
+
   FnoseGameResult get result {
     final avgAngle = _angles.isEmpty
         ? null
@@ -154,28 +177,79 @@ class FnoseGameEngine {
         : _distances.reduce((a, b) => a + b) / _distances.length;
     return FnoseGameResult(
       totalTime: totalSeconds,
+      durationMs: playedMs,
       gameMode: _settings.gameMode,
       totalLeftSparks: leftSparks,
       totalRightSparks: rightSparks,
       totalSparks: totalSparks,
       avgDistance: avgDistance,
       avgAngle: avgAngle,
+      phaseEvents: List.unmodifiable(_phaseEvents),
       poseSamples: List.unmodifiable(_poseSamples),
-      touchEvents: List.unmodifiable(_touchEvents),
-      settingsSnapshot: _settings.toUpdateJson(),
-      advSettingsSnapshot: Map<String, dynamic>.from(_adv.data),
+      sparkEvents: List.unmodifiable(_sparkEvents),
+      hitEvents: List.unmodifiable(_hitEvents),
       screenWidth: screenWidth,
       screenHeight: screenHeight,
       imageWidth: imageWidth,
       imageHeight: imageHeight,
-      pregameRunId: pregameRunId,
-      startedAtMs: _clock.startedAt.millisecondsSinceEpoch,
-      endedAtMs: _clock.nowMs(),
+      calibrationRunId: calibrationRunId,
       preview: _mapper?.normalizedPreview,
     );
   }
 
   void notify() => _onChanged?.call();
+
+  static bool _isSetup(FnoseGamePhase p) =>
+      p.index <= FnoseGamePhase.calibrateFinger.index;
+
+  void _setPhase(FnoseGamePhase next, DateTime at) {
+    if (next == phase) return;
+    if (_isSetup(phase) && next.index > phase.index) _passStep(phase, at);
+    if (_isSetup(next)) _enterStep(next, at);
+    if (next.index <= FnoseGamePhase.calibrateFinger.index) {
+      telemetry.addPhase(from: phase.name, to: next.name, at: at);
+    } else {
+      _phaseEvents.add(
+        phaseEvent(
+          offsetMs: _clock.offsetMs(at),
+          from: phase.name,
+          to: next.name,
+        ),
+      );
+    }
+    phase = next;
+  }
+
+  void _enterStep(FnoseGamePhase step, DateTime at) {
+    final seen = _steps[step];
+    if (seen == null) {
+      _steps[step] = SetupStepRecord(step, _clock.offsetMs(at));
+      return;
+    }
+    seen
+      ..attempts += 1
+      ..passed = false
+      ..endedMs = null;
+  }
+
+  /// Called before [_resetHold], while the completing hold is still known.
+  void _passStep(FnoseGamePhase step, DateTime at) {
+    final record = _steps[step];
+    if (record == null) return;
+    final holdStart = _holdStartedAt;
+    record
+      ..passed = true
+      ..endedMs = _clock.offsetMs(at)
+      ..heldMs = holdStart == null ? 0 : at.difference(holdStart).inMilliseconds
+      ..meanA = _holdSamples == 0 ? null : _holdSumA / _holdSamples
+      ..meanB = _holdSamples == 0 ? null : _holdSumB / _holdSamples;
+  }
+
+  void _sampleHold(double a, [double b = 0]) {
+    _holdSumA += a;
+    _holdSumB += b;
+    _holdSamples += 1;
+  }
 
   /// Sensor tick from [PregameSensorSampler] — same wall clock as pose/events.
   void onSensorStatus({
@@ -200,7 +274,7 @@ class FnoseGameEngine {
         return;
       }
       if (phase != FnoseGamePhase.deviceStill) {
-        phase = FnoseGamePhase.deviceStill;
+        _setPhase(FnoseGamePhase.deviceStill, now);
         telemetry.addEvent('stability_lost', at: now);
       }
       _resetHold();
@@ -213,7 +287,7 @@ class FnoseGameEngine {
       case FnoseGamePhase.deviceStill:
         _startOrContinueHold(now);
         if (_holdReached(_adv.i('required_stable_time_ms', 2500), now)) {
-          phase = FnoseGamePhase.deviceRoll;
+          _setPhase(FnoseGamePhase.deviceRoll, now);
           _resetHold();
           telemetry.addEvent('stability_ok', at: now);
         }
@@ -226,8 +300,9 @@ class FnoseGameEngine {
           _resetHold();
         } else {
           _startOrContinueHold(now);
+          _sampleHold(roll);
           if (_holdReached(_adv.i('tilt_hold_ms', 700), now)) {
-            phase = FnoseGamePhase.devicePitch;
+            _setPhase(FnoseGamePhase.devicePitch, now);
             _resetHold();
           }
         }
@@ -240,8 +315,9 @@ class FnoseGameEngine {
           _resetHold();
         } else {
           _startOrContinueHold(now);
+          _sampleHold(pitch);
           if (_holdReached(_adv.i('tilt_hold_ms', 700), now)) {
-            phase = FnoseGamePhase.alignNose;
+            _setPhase(FnoseGamePhase.alignNose, now);
             _resetHold();
           }
         }
@@ -280,8 +356,9 @@ class FnoseGameEngine {
           _resetHold();
         } else {
           _startOrContinueHold(now);
+          _sampleHold(point.dx, point.dy);
           if (_holdReached(_adv.i('nose_hold_ms', 1200), now)) {
-            phase = FnoseGamePhase.calibrateFinger;
+            _setPhase(FnoseGamePhase.calibrateFinger, now);
             _resetHold();
             _resetFingerTracking();
             telemetry.addEvent('nose_aligned', at: now);
@@ -333,7 +410,7 @@ class FnoseGameEngine {
             targetY: target.dy,
             at: now,
           );
-          phase = FnoseGamePhase.countdown;
+          _setPhase(FnoseGamePhase.countdown, now);
           _resetHold();
           telemetry.addEvent('countdown_start', at: now);
         }
@@ -423,34 +500,185 @@ class FnoseGameEngine {
   void _resetHold() {
     _holdStartedAt = null;
     _lastHoldSampleAt = null;
+    _holdSumA = 0;
+    _holdSumB = 0;
+    _holdSamples = 0;
   }
 
-  /// Closes pregame window and returns POST payload (same `t` timeline).
-  Map<String, dynamic>? closePregame({
-    required String status,
-    String? deviceModel,
+  /// Closes the pre-game window and returns the run for `/calibrations`
+  /// (same `offsetMs` timeline as the match); null if already closed.
+  /// [completed] is false when the player leaves during the setup.
+  FnoseCalibrationRun? closeCalibration({
+    required bool completed,
     DateTime? at,
   }) {
     if (_pregameClosed) return null;
     _pregameClosed = true;
-    return telemetry.finish(
-      gameMode: _settings.gameMode,
-      status: status,
-      deviceModel: deviceModel,
-      screenWidth: screenWidth,
-      screenHeight: screenHeight,
-      imageWidth: imageWidth,
-      imageHeight: imageHeight,
-      preview: _mapper?.normalizedPreview,
-      settingsSnapshot: _settings.toUpdateJson(),
-      advSettingsSnapshot: Map<String, dynamic>.from(_adv.data),
-      at: at,
+    telemetry.close(abandoned: !completed, at: at);
+    final end = telemetry.endedOffsetMs ?? _clock.offsetMs(at);
+    final offset = fingerCalibrationOffset;
+    return FnoseCalibrationRun(
+      completed: completed,
+      startedOffsetMs: telemetry.startedOffsetMs ?? end,
+      endedOffsetMs: end,
+      context: {
+        'screenWidth': ?screenWidth,
+        'screenHeight': ?screenHeight,
+        'imageWidth': ?imageWidth,
+        'imageHeight': ?imageHeight,
+        'preview': ?_mapper?.normalizedPreview,
+        'settingsSnapshot': {..._settings.toUpdateJson(), ..._adv.toApiJson()},
+        'dataContractVersion': MotionDataContract.version,
+      },
+      sensorSamples: List.of(telemetry.sensorSamples),
+      poseFrames: List.of(telemetry.poseSamples),
+      events: [
+        for (final e in telemetry.events)
+          {
+            'offsetMs': e['offsetMs'],
+            'eventType': e['type'],
+            'payload': ?e['data'],
+          },
+      ],
+      steps: [
+        for (final step
+            in _steps.values.toList()
+              ..sort((a, b) => a.phase.index.compareTo(b.phase.index)))
+          _stepJson(step),
+      ],
+      result: completed && offset != null
+          ? {
+              'fingerOffset': {
+                'dx': offset.dx,
+                'dy': offset.dy,
+                'space': 'screen_norm',
+              },
+            }
+          : null,
     );
   }
 
+  Map<String, dynamic> _stepJson(SetupStepRecord step) {
+    final passed = step.passed;
+    final common = {
+      'status': passed ? 'PASSED' : 'ABANDONED',
+      'startedOffsetMs': step.startedMs,
+      'endedOffsetMs': ?step.endedMs,
+      'attempts': step.attempts,
+    };
+    Map<String, dynamic> tilt(String axis, String min, String max) => {
+      'stepType': 'DEVICE_TILT',
+      ...common,
+      'params': {
+        'axis': axis,
+        'minDeg': _adv.d(min, axis == 'ROLL' ? -8 : -12),
+        'maxDeg': _adv.d(max, axis == 'ROLL' ? 8 : 12),
+        'holdMs': _adv.i('tilt_hold_ms', 700),
+      },
+      if (passed) 'result': {'meanDeg': step.meanA ?? 0, 'heldMs': step.heldMs},
+    };
+    return switch (step.phase) {
+      FnoseGamePhase.deviceStill => {
+        'stepType': 'DEVICE_STILL',
+        ...common,
+        'params': {
+          'requiredStableTimeMs': _adv.i('required_stable_time_ms', 2500),
+          'stabilityGraceMs': _adv.i('stability_grace_ms', 400),
+        },
+        if (passed) 'result': {'achievedMs': step.heldMs},
+      },
+      FnoseGamePhase.deviceRoll => tilt('ROLL', 'roll_min_deg', 'roll_max_deg'),
+      FnoseGamePhase.devicePitch => tilt(
+        'PITCH',
+        'pitch_min_deg',
+        'pitch_max_deg',
+      ),
+      FnoseGamePhase.alignNose => {
+        'stepType': 'BODY_LANDMARK_ALIGN',
+        ...common,
+        'params': {
+          'landmark': 'nose',
+          'region': _region(noseTargetCenter, noseTargetRadius),
+          'holdMs': _adv.i('nose_hold_ms', 1200),
+        },
+        if (passed) 'result': _alignResult(step),
+      },
+      _ => _targetStep(step, common),
+    };
+  }
+
+  Map<String, dynamic> _alignResult(SetupStepRecord step) {
+    final mean = _inRegionSpace(Offset(step.meanA ?? 0, step.meanB ?? 0));
+    return {'meanX': mean.dx, 'meanY': mean.dy, 'heldMs': step.heldMs};
+  }
+
+  Map<String, dynamic> _targetStep(
+    SetupStepRecord step,
+    Map<String, dynamic> common,
+  ) {
+    final mapper = _mapper;
+    final offset = fingerCalibrationOffset;
+    final point = calibratedFingerPosition;
+    final tolerance = _adv.d('finger_stability', 0.05);
+    return {
+      'stepType': 'TARGET_POINT',
+      ...common,
+      'params': {
+        'landmark': _settings.gameMode == 'rightHand'
+            ? 'right_index'
+            : 'left_index',
+        'target': _region(
+          calibrationTargetPosition ?? fingerTargetCenter,
+          fingerTargetRadius,
+        ),
+        'tolerance': mapper == null
+            ? tolerance
+            : mapper.radiusToPixels(tolerance),
+        'smoothing': _adv.d('finger_smoothing', 0.35).clamp(0.05, 1.0),
+        'holdMs': _adv.i('finger_hold_ms', 1200),
+      },
+      if (step.passed && offset != null)
+        'result': {
+          'offsetDx': _inRegionSpace(offset).dx,
+          'offsetDy': _inRegionSpace(offset).dy,
+          if (point != null) ...{
+            'pointX': _inRegionSpace(point).dx,
+            'pointY': _inRegionSpace(point).dy,
+          },
+        },
+    };
+  }
+
+  /// Regions are in screen pixels when the screen is known: the app's radii
+  /// are fractions of the shorter side, which is not `screen_norm`.
+  Map<String, dynamic> _region(Offset center, double radius) {
+    final mapper = _mapper;
+    if (mapper == null) {
+      return {
+        'x': center.dx,
+        'y': center.dy,
+        'radius': radius,
+        'space': 'screen_norm',
+      };
+    }
+    final px = mapper.toPixels(center);
+    return {
+      'x': px.dx,
+      'y': px.dy,
+      'radius': mapper.radiusToPixels(radius),
+      'space': 'screen_px',
+    };
+  }
+
+  Offset _inRegionSpace(Offset screenFraction) =>
+      _mapper?.toPixels(screenFraction) ?? screenFraction;
+
   void beginPlaying() {
     if (phase != FnoseGamePhase.countdown) return;
-    phase = FnoseGamePhase.playing;
+    final now = _clock.now();
+    _setPhase(FnoseGamePhase.playing, now);
+    _playingStartedMs = _clock.offsetMs(now);
+    _finishedMs = null;
     remainingSeconds = totalSeconds;
     leftSparks = 0;
     rightSparks = 0;
@@ -462,7 +690,8 @@ class FnoseGameEngine {
     _right.reset();
     _poseFrameCounter = 0;
     _poseSamples.clear();
-    _touchEvents.clear();
+    _sparkEvents.clear();
+    _hitEvents.clear();
     _angles.clear();
     _distances.clear();
     lastHitMark = null;
@@ -477,36 +706,55 @@ class FnoseGameEngine {
     remainingSeconds -= 1;
     if (remainingSeconds <= 0) {
       remainingSeconds = 0;
-      phase = FnoseGamePhase.finished;
+      final now = _clock.now();
+      _setPhase(FnoseGamePhase.finished, now);
+      _finishedMs = _clock.offsetMs(now);
     }
     notify();
   }
 
   void _samplePose(List<LandmarkPoint> pose, DateTime now) {
     _poseSamples.add({
-      't': now.toUtc().millisecondsSinceEpoch,
+      'offsetMs': _clock.offsetMs(now),
+      'phase': phase.name,
       'pose': [for (final p in pose) p.toKinematicJson()],
-      'hands': const <Map<String, dynamic>>[],
     });
   }
 
   void _processArms(Map<int, LandmarkPoint> byIndex, DateTime now) {
-    final mode = _settings.gameMode;
-    final leftActive = mode == 'leftHand' || mode == 'bothHands';
-    final rightActive = mode == 'rightHand' || mode == 'bothHands';
+    final leftActive = _settings.gameMode != 'rightHand';
+    final rightActive = !leftActive;
 
     if (leftActive) {
       _tickArm(isLeft: true, byIndex: byIndex, tracker: _left, now: now);
     } else {
       _left.reset();
-      leftSpark = FnoseSparkState.idle;
+      _setSpark(isLeft: true, FnoseSparkState.idle, now);
     }
 
     if (rightActive) {
       _tickArm(isLeft: false, byIndex: byIndex, tracker: _right, now: now);
     } else {
       _right.reset();
-      rightSpark = FnoseSparkState.idle;
+      _setSpark(isLeft: false, FnoseSparkState.idle, now);
+    }
+  }
+
+  /// Sets one arm's spark state; a change becomes a `spark` event.
+  void _setSpark(FnoseSparkState next, DateTime at, {required bool isLeft}) {
+    final current = isLeft ? leftSpark : rightSpark;
+    if (next == current) return;
+    _sparkEvents.add({
+      'offsetMs': _clock.offsetMs(at),
+      'eventType': 'spark',
+      'side': isLeft ? 'left' : 'right',
+      'fromState': current.name,
+      'toState': next.name,
+    });
+    if (isLeft) {
+      leftSpark = next;
+    } else {
+      rightSpark = next;
     }
   }
 
@@ -543,11 +791,7 @@ class FnoseGameEngine {
     final fireUntil = isLeft ? _leftFireUntil : _rightFireUntil;
     if (fireUntil != null) {
       if (now.isBefore(fireUntil)) {
-        if (isLeft) {
-          leftSpark = FnoseSparkState.fire;
-        } else {
-          rightSpark = FnoseSparkState.fire;
-        }
+        _setSpark(isLeft: isLeft, FnoseSparkState.fire, now);
         notify();
         return;
       }
@@ -578,6 +822,7 @@ class FnoseGameEngine {
             mapper.distance(tipScreen, fingerTargetCenter) <= fingerTargetRadius;
         if (inside) {
           _registerTargetHit(
+            mapper,
             isLeft: isLeft,
             tip: index,
             tipScreen: tipScreen,
@@ -598,15 +843,12 @@ class FnoseGameEngine {
       }
     }
 
-    if (isLeft) {
-      leftSpark = spark;
-    } else {
-      rightSpark = spark;
-    }
+    _setSpark(isLeft: isLeft, spark, now);
     notify();
   }
 
-  void _registerTargetHit({
+  void _registerTargetHit(
+    ScreenMapper mapper, {
     required bool isLeft,
     required LandmarkPoint tip,
     required Offset tipScreen,
@@ -625,20 +867,24 @@ class FnoseGameEngine {
     final dx = tip.x - nose.x;
     final dy = tip.y - nose.y;
     _distances.add((Offset(dx, dy)).distance);
-    _touchEvents.add({
-      't': now.toUtc().millisecondsSinceEpoch,
-      'isLeft': isLeft,
-      'angle': angle,
-      'screen': {'x': tipScreen.dx, 'y': tipScreen.dy},
-      'target': {
-        'x': fingerTargetCenter.dx,
-        'y': fingerTargetCenter.dy,
-        'r': fingerTargetRadius,
-      },
+    // tip/nose in the camera image; tip (with the calibration offset) and
+    // target in screen pixels, exactly as the hit was decided.
+    final tipPx = mapper.toPixels(tipScreen);
+    final targetPx = mapper.toPixels(fingerTargetCenter);
+    _hitEvents.add({
+      'offsetMs': _clock.offsetMs(now),
+      'eventType': 'hit',
+      'side': isLeft ? 'left' : 'right',
+      'angleDeg': angle,
+      'tipX': tip.x,
+      'tipY': tip.y,
       'noseX': nose.x,
       'noseY': nose.y,
-      'insideTarget': true,
-      'gameMode': _settings.gameMode,
+      'tipScreenX': tipPx.dx,
+      'tipScreenY': tipPx.dy,
+      'targetX': targetPx.dx,
+      'targetY': targetPx.dy,
+      'targetRadius': mapper.radiusToPixels(fingerTargetRadius),
     });
   }
 }
@@ -653,16 +899,17 @@ class OffsetMark {
 class FnoseGameResult {
   const FnoseGameResult({
     required this.totalTime,
+    this.durationMs = 0,
     required this.gameMode,
     required this.totalLeftSparks,
     required this.totalRightSparks,
     required this.totalSparks,
     this.avgDistance,
     this.avgAngle,
+    this.phaseEvents = const [],
     this.poseSamples = const [],
-    this.touchEvents = const [],
-    this.settingsSnapshot,
-    this.advSettingsSnapshot,
+    this.sparkEvents = const [],
+    this.hitEvents = const [],
     this.screenWidth,
     this.screenHeight,
     this.imageWidth,
@@ -670,23 +917,29 @@ class FnoseGameResult {
     this.matchId,
     this.sessionId,
     this.saveError,
-    this.pregameRunId,
-    this.startedAtMs,
-    this.endedAtMs,
+    this.calibrationRunId,
     this.preview,
+    this.queued = false,
   });
 
   final int totalTime;
+
+  /// Tempo jogado medido (fase `playing` → `finished`), em ms.
+  final int durationMs;
   final String gameMode;
   final int totalLeftSparks;
   final int totalRightSparks;
   final int totalSparks;
   final double? avgDistance;
   final double? avgAngle;
+  final List<Map<String, dynamic>> phaseEvents;
   final List<Map<String, dynamic>> poseSamples;
-  final List<Map<String, dynamic>> touchEvents;
-  final Map<String, dynamic>? settingsSnapshot;
-  final Map<String, dynamic>? advSettingsSnapshot;
+
+  /// Spark state changes per arm (`idle` → `armed` → `fire` → `idle`).
+  final List<Map<String, dynamic>> sparkEvents;
+
+  /// One per spark counted.
+  final List<Map<String, dynamic>> hitEvents;
   final int? screenWidth;
   final int? screenHeight;
   final int? imageWidth;
@@ -694,10 +947,11 @@ class FnoseGameResult {
   final String? matchId;
   final String? sessionId;
   final String? saveError;
-  final String? pregameRunId;
-  final int? startedAtMs;
-  final int? endedAtMs;
+  final String? calibrationRunId;
   final Map<String, double>? preview;
+
+  /// Not sent yet but kept on the device; [saveError] says so.
+  final bool queued;
 
   bool get saved => matchId != null && saveError == null;
 
@@ -705,21 +959,23 @@ class FnoseGameResult {
     String? matchId,
     String? sessionId,
     String? saveError,
-    String? pregameRunId,
+    String? calibrationRunId,
+    bool? queued,
     bool clearSaveError = false,
   }) {
     return FnoseGameResult(
       totalTime: totalTime,
+      durationMs: durationMs,
       gameMode: gameMode,
       totalLeftSparks: totalLeftSparks,
       totalRightSparks: totalRightSparks,
       totalSparks: totalSparks,
       avgDistance: avgDistance,
       avgAngle: avgAngle,
+      phaseEvents: phaseEvents,
       poseSamples: poseSamples,
-      touchEvents: touchEvents,
-      settingsSnapshot: settingsSnapshot,
-      advSettingsSnapshot: advSettingsSnapshot,
+      sparkEvents: sparkEvents,
+      hitEvents: hitEvents,
       screenWidth: screenWidth,
       screenHeight: screenHeight,
       imageWidth: imageWidth,
@@ -727,63 +983,23 @@ class FnoseGameResult {
       matchId: matchId ?? this.matchId,
       sessionId: sessionId ?? this.sessionId,
       saveError: clearSaveError ? null : (saveError ?? this.saveError),
-      pregameRunId: pregameRunId ?? this.pregameRunId,
-      startedAtMs: startedAtMs,
-      endedAtMs: endedAtMs,
+      calibrationRunId: calibrationRunId ?? this.calibrationRunId,
       preview: preview,
+      queued: queued ?? this.queued,
     );
   }
 
-  Map<String, dynamic> toMatchPayload({String? deviceModel}) {
-    return {
-      'data_contract_version': MotionDataContract.version,
-      'device_model': ?deviceModel,
-      'total_time': totalTime,
-      'game_mode': gameMode,
-      'total_left_sparks': totalLeftSparks,
-      'total_right_sparks': totalRightSparks,
-      'total_sparks': totalSparks,
-      'avg_distance': avgDistance,
-      'avg_angle': avgAngle,
-      'settings_snapshot': settingsSnapshot,
-      'adv_settings_snapshot': advSettingsSnapshot,
-      'screen_width': screenWidth,
-      'screen_height': screenHeight,
-      'image_width': imageWidth,
-      'image_height': imageHeight,
-      'is_valid_match': totalSparks > 0,
-      'pose_samples': poseSamples,
-      'touch_events': touchEvents,
-      'pregame_run_id': ?pregameRunId,
-      'started_at_ms': startedAtMs,
-      'ended_at_ms': endedAtMs,
-      'preview': preview,
-    };
-  }
-}
+  /// `phase`, `spark` and `hit` on one timeline, ordered by `offsetMs`.
+  List<Map<String, dynamic>> get events =>
+      byOffset([phaseEvents, sparkEvents, hitEvents]);
 
-class FnoseMatchSaveResponse {
-  const FnoseMatchSaveResponse({
-    required this.id,
-    required this.sessionId,
-    required this.totalSparks,
-    required this.poseChunkCount,
-    required this.touchChunkCount,
-  });
-
-  final String id;
-  final String sessionId;
-  final int totalSparks;
-  final int poseChunkCount;
-  final int touchChunkCount;
-
-  factory FnoseMatchSaveResponse.fromJson(Map<String, dynamic> json) {
-    return FnoseMatchSaveResponse(
-      id: json['id'] as String,
-      sessionId: json['session_id'] as String,
-      totalSparks: json['total_sparks'] as int? ?? 0,
-      poseChunkCount: json['pose_chunk_count'] as int? ?? 0,
-      touchChunkCount: json['touch_chunk_count'] as int? ?? 0,
-    );
-  }
+  /// Body of `POST /msupperlimbs-fnose/matches/{id}/metrics`.
+  Map<String, dynamic> toMetricsJson() => {
+    'totalLeftSparks': totalLeftSparks,
+    'totalRightSparks': totalRightSparks,
+    'totalSparks': totalSparks,
+    'avgDistance': ?avgDistance,
+    'avgAngle': ?avgAngle,
+    'isValidMatch': totalSparks > 0,
+  };
 }

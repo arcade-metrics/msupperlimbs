@@ -1,61 +1,36 @@
 # MS Upper Limbs
 
-Reescrita do app de avaliação de membros superiores: Flutter + API FastAPI + PostgreSQL + MediaPipe.
+App de avaliação de membros superiores (Rapid e FNose): Flutter + MediaPipe,
+com a API do [ciatec-core](https://github.com/ciatec-org/ciatec-core).
 
-Legado em `old/` (somente referência). Documentação em `docs/`.
+Legado em `old/` (somente referência, fora do git). Documentação em `docs/`.
 
 ## Estrutura
 
 ```
 mobile/    # Flutter
-backend/   # FastAPI
-docs/      # Inventário, schema, fluxos
-old/       # App antigo (Firebase)
+docs/      # Arquitetura, fluxos, deploy, inventário do legado
+scripts/   # correr o app, verificação, ADB wireless, db-check
 ```
 
-## Fases
+## API
 
-| Fase | Status | Conteúdo |
-|------|--------|----------|
-| 0 | feita | Inventário em `docs/` |
-| 1 | feita | Bootstrap mobile + backend |
-| 2 | feita | Auth JWT email/senha + home |
-| 3 | feita | Câmera + MediaPipe (Android debug) |
-| 4 | pendente | FNose |
-| 5 | feita | Rapid (settings → jogo → SQL matches) |
-| 6 | feita | Hardening (testes, deploy, migração opcional) |
+O app usa sempre `https://api.ciatec.org/api/v1`. O contrato
+(login, settings, calibração, partidas, telemetria) está em
+`docs/games/msupperlimbs/MSUPPERLIMBS-API.md` no ciatec-core.
+Deploy e release: [docs/DEPLOY.md](docs/DEPLOY.md).
 
-## Backend (Postgres local)
+Verificação: `.\scripts\check.ps1` (`flutter analyze` + `flutter test test/features/`)
 
-Requer **Python 3.12** e Postgres com a base `teamap_db`.
+## Correr o app
+
+O app usa sempre a API de produção (`https://api.ciatec.org`); não há API local.
 
 ```powershell
-cd backend
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-copy .env.example .env   # já aponta para postgres:1234@localhost/teamap_db
-alembic upgrade head     # cria/atualiza tabelas (users, rapid_settings, …)
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+.\scripts\run.ps1
 ```
 
-Health: http://localhost:8000/health  
-Docs: http://localhost:8000/docs  
-Deploy: [docs/DEPLOY.md](docs/DEPLOY.md)
-
-Verificação: `.\scripts\check.ps1` (pytest + flutter test Rapid)
-
-## Dev local (API + Flutter)
-
-Sobe a API (se ainda não estiver) e corre o app no device:
-
-```powershell
-.\scripts\dev-local.ps1
-```
-
-Usa o IP da máquina na LAN (`API_BASE_URL`) e, se existir, o device do `adb-wireless`.  
-Emulador: `.\scripts\dev-local.ps1 -Emulator`  
-Só API / só Flutter: `-ApiOnly` / `-FlutterOnly`
+Usa o device do `adb-wireless`, se estiver ligado. Outro device: `-Device <id>`.
 
 ## Idiomas (i18n)
 

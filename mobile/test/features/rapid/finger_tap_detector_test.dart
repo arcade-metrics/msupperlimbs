@@ -117,7 +117,6 @@ RapidSettings _fixtureSettings({
   int tapCooldownMs = 110,
 }) {
   return RapidSettings(
-    userId: 'test',
     showInfoVideo: true,
     totalTime: 30,
     gameMode: 'rightHand',

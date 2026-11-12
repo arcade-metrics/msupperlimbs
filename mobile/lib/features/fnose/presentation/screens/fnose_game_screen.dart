@@ -6,13 +6,21 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:msupperlimbs/features/auth/application/auth_notifier.dart';
+import 'package:msupperlimbs/features/calibration/application/calibration_providers.dart';
+import 'package:msupperlimbs/core/network/api_error_messages.dart';
+import 'package:msupperlimbs/features/fnose/application/fnose_calibration_flow.dart';
+import 'package:msupperlimbs/features/fnose/application/fnose_match_flow.dart';
 import 'package:msupperlimbs/features/fnose/application/fnose_settings_providers.dart';
+import 'package:msupperlimbs/features/fnose/domain/fnose_calibration.dart';
 import 'package:msupperlimbs/features/fnose/domain/fnose_game_engine.dart';
 import 'package:msupperlimbs/features/fnose/domain/fnose_types.dart';
 import 'package:msupperlimbs/features/fnose/domain/pregame_sensor_sampler.dart';
 import 'package:msupperlimbs/features/fnose/presentation/widgets/fnose_pregame_overlay.dart';
 import 'package:msupperlimbs/features/fnose/presentation/widgets/fnose_nose_alignment_overlay.dart';
 import 'package:msupperlimbs/features/fnose/presentation/widgets/fnose_target_overlay.dart';
+import 'package:msupperlimbs/features/match/application/match_providers.dart';
+import 'package:msupperlimbs/features/match/application/match_uploader.dart';
+import 'package:msupperlimbs/features/match/domain/match_context.dart';
 import 'package:msupperlimbs/features/motion/data/camera_frame_converter.dart';
 import 'package:msupperlimbs/features/motion/data/mediapipe_service.dart';
 import 'package:msupperlimbs/features/motion/domain/landmark_point.dart';
@@ -32,6 +40,8 @@ class FnoseGameScreen extends ConsumerStatefulWidget {
 class _FnoseGameScreenState extends ConsumerState<FnoseGameScreen> {
   final _mediaPipe = MediaPipeService();
   final _clock = SessionClock();
+  late final FnoseCalibrationFlow _calibration;
+  late final FnoseMatchFlow _match;
   CameraController? _controller;
   FnoseGameEngine? _engine;
   PregameSensorSampler? _sensors;
@@ -42,7 +52,6 @@ class _FnoseGameScreenState extends ConsumerState<FnoseGameScreen> {
   bool _busy = true;
   bool _processing = false;
   bool _saving = false;
-  bool _uploadingPregame = false;
   bool _alive = true;
   String? _error;
   List<LandmarkPoint> _pose = const [];
@@ -53,6 +62,22 @@ class _FnoseGameScreenState extends ConsumerState<FnoseGameScreen> {
   @override
   void initState() {
     super.initState();
+    final auth = ref.read(authProvider.notifier);
+    final matches = ref.read(matchApiProvider);
+    final queue = ref.read(pendingUploadsProvider);
+    _calibration = FnoseCalibrationFlow(
+      matches,
+      ref.read(calibrationApiProvider),
+      () => auth.accessToken,
+      userId: () => auth.userId,
+      queue: queue,
+    );
+    _match = FnoseMatchFlow(
+      matches,
+      () => auth.accessToken,
+      userId: () => auth.userId,
+      queue: queue,
+    );
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     SystemChrome.setPreferredOrientations(const [
       DeviceOrientation.landscapeLeft,
@@ -220,32 +245,28 @@ class _FnoseGameScreenState extends ConsumerState<FnoseGameScreen> {
     final engine = _engine;
     if (engine == null) return;
 
-    if (!_uploadingPregame && engine.pregameRunId == null) {
-      _uploadingPregame = true;
-      final payload = engine.closePregame(
-        status: 'completed',
-        deviceModel: _controller?.description.name,
-      );
-      final token = ref.read(authProvider).accessToken;
-      if (payload != null && token != null) {
-        try {
-          final saved = await ref
-              .read(fnosePregameRepositoryProvider)
-              .savePregame(accessToken: token, payload: payload);
-          engine.pregameRunId = saved.id;
-        } catch (_) {
-          // Match can still be saved without linked pregame.
-        }
-      }
-      _sensors?.stop();
-      _uploadingPregame = false;
-    }
+    final run = engine.closeCalibration(completed: true);
+    _sensors?.stop();
+    final calibrationRunId = run == null
+        ? null
+        : _uploadCalibration(run).then((id) => engine.calibrationRunId = id);
 
     engine.onCountdownFinished();
+    _match.start(_matchContext(engine), calibrationRunId: calibrationRunId);
     _secondTimer?.cancel();
     _secondTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       engine.onSecondElapsed();
     });
+  }
+
+  /// Never throws: the match can still be played and saved without a run.
+  Future<String?> _uploadCalibration(FnoseCalibrationRun run) async {
+    try {
+      return await _calibration.upload(run);
+    } catch (e, st) {
+      debugPrint('FNose calibration upload failed: $e\n$st');
+      return null;
+    }
   }
 
   void _maybeFinish() {
@@ -266,28 +287,14 @@ class _FnoseGameScreenState extends ConsumerState<FnoseGameScreen> {
     engine.screenWidth = size.width.round();
     engine.screenHeight = size.height.round();
 
+    final l10n = AppLocalizations.of(context);
     var result = engine.result;
-    final token = ref.read(authProvider).accessToken;
-    if (token != null) {
-      try {
-        final saved = await ref
-            .read(fnoseMatchRepositoryProvider)
-            .saveMatch(
-              accessToken: token,
-              result: result,
-              deviceModel: _controller?.description.name,
-            );
-        result = result.copyWith(
-          matchId: saved.id,
-          sessionId: saved.sessionId,
-          clearSaveError: true,
-        );
-      } catch (e) {
-        result = result.copyWith(saveError: e.toString());
-      }
-    } else {
+    try {
+      result = await _match.complete(result, _matchContext(engine));
+    } catch (e) {
       result = result.copyWith(
-        saveError: AppLocalizations.of(context).auth_missingToken,
+        saveError: apiErrorMessage(l10n, e),
+        queued: e is UploadQueuedException,
       );
     }
 
@@ -295,6 +302,16 @@ class _FnoseGameScreenState extends ConsumerState<FnoseGameScreen> {
     _navigatedToFeedback = true;
     context.go('/fnose-feedback', extra: result);
   }
+
+  Map<String, dynamic> _matchContext(FnoseGameEngine engine) =>
+      buildMatchContext(
+        screenWidth: engine.screenWidth,
+        screenHeight: engine.screenHeight,
+        imageWidth: engine.imageWidth,
+        imageHeight: engine.imageHeight,
+        cameraLens: _controller?.description.lensDirection.name,
+        preview: engine.result.preview,
+      );
 
   @override
   void dispose() {
@@ -304,20 +321,13 @@ class _FnoseGameScreenState extends ConsumerState<FnoseGameScreen> {
     _sensors = null;
     final engine = _engine;
     _engine = null;
-    if (engine != null && engine.telemetry.isActive) {
-      final payload = engine.closePregame(
-        status: 'abandoned',
-        deviceModel: _controller?.description.name,
+    if (engine != null && engine.phase == FnoseGamePhase.playing) {
+      unawaited(
+        _match.cancel(score: engine.totalSparks, durationMs: engine.playedMs),
       );
-      final token = ref.read(authProvider).accessToken;
-      if (payload != null && token != null) {
-        unawaited(
-          ref
-              .read(fnosePregameRepositoryProvider)
-              .savePregame(accessToken: token, payload: payload),
-        );
-      }
     }
+    final abandoned = engine?.closeCalibration(completed: false);
+    if (abandoned != null) unawaited(_uploadCalibration(abandoned));
     final controller = _controller;
     _controller = null;
     controller?.dispose();

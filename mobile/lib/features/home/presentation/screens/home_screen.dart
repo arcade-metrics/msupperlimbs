@@ -49,71 +49,83 @@ class HomeScreen extends ConsumerWidget {
         ),
         actions: const [LocaleSwitcher()],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(height: 16),
-            const BrandLogo(height: 100),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () => context.push('/fnose-intro'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                minimumSize: const Size(double.infinity, 50),
-                textStyle: const TextStyle(fontSize: 18),
-              ),
-              child: Text(l10n.home_fingerToNoseChallenge),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => context.push('/rapid-intro'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                minimumSize: const Size(double.infinity, 50),
-                textStyle: const TextStyle(fontSize: 18),
-              ),
-              child: Text(l10n.home_rapidChallenge),
-            ),
-            const SizedBox(height: 24),
-            TextButton(
-              onPressed: () => context.push('/motion-debug'),
-              child: Text(l10n.home_mediapipeDebug),
-            ),
-            const SizedBox(height: 36),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton(
-                  onPressed: () => _logout(context, ref),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[600],
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
-                  ),
-                  child: Text(l10n.home_changeUser),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) => Scrollbar(
+            thumbVisibility: true,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 32,
                 ),
-                ElevatedButton(
-                  onPressed: _exitApp,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 16),
+                    const BrandLogo(height: 100),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () => context.push('/fnose-intro'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        minimumSize: const Size(double.infinity, 50),
+                        textStyle: const TextStyle(fontSize: 18),
+                      ),
+                      child: Text(l10n.home_fingerToNoseChallenge),
                     ),
-                  ),
-                  child: Text(l10n.home_exit),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => context.push('/rapid-intro'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        minimumSize: const Size(double.infinity, 50),
+                        textStyle: const TextStyle(fontSize: 18),
+                      ),
+                      child: Text(l10n.home_rapidChallenge),
+                    ),
+                    const SizedBox(height: 24),
+                    TextButton(
+                      onPressed: () => context.push('/motion-debug'),
+                      child: Text(l10n.home_mediapipeDebug),
+                    ),
+                    const SizedBox(height: 36),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () => _logout(context, ref),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[600],
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                          ),
+                          child: Text(l10n.home_changeUser),
+                        ),
+                        ElevatedButton(
+                          onPressed: _exitApp,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                          ),
+                          child: Text(l10n.home_exit),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -120,126 +120,134 @@ class _RapidSettingsScreenState extends ConsumerState<RapidSettingsScreen> {
         return Scaffold(
           appBar: AppBar(title: const Text('Rapid Settings')),
           body: SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                SwitchListTile(
-                  title: const Text('Mostrar vídeo de instrução'),
-                  value: draft.showInfoVideo,
-                  onChanged: (v) =>
-                      setState(() => _draft = draft.copyWith(showInfoVideo: v)),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Visualização',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'line', label: Text('Linha')),
-                    ButtonSegment(value: 'bar', label: Text('Barra')),
-                    ButtonSegment(value: 'circle', label: Text('Círculo')),
-                  ],
-                  selected: {draft.visualizationType},
-                  onSelectionChanged: (values) {
-                    setState(
-                      () => _draft = draft.copyWith(
-                        visualizationType: values.first,
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-                _numberField('Tempo total (s)', _controllers['totalTime']!, (
-                  v,
-                ) {
-                  final n = int.tryParse(v);
-                  if (n != null) {
-                    setState(() => _draft = draft.copyWith(totalTime: n));
-                  }
-                }),
-                _numberField(
-                  'Sensibilidade do tap (0–1 MediaPipe)',
-                  _controllers['tapSensitivity']!,
-                  (v) {
-                    final n = double.tryParse(v);
-                    if (n != null) {
+            child: Scrollbar(
+              thumbVisibility: true,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  SwitchListTile(
+                    title: const Text('Mostrar vídeo de instrução'),
+                    value: draft.showInfoVideo,
+                    onChanged: (v) => setState(
+                      () => _draft = draft.copyWith(showInfoVideo: v),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Visualização',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'line', label: Text('Linha')),
+                      ButtonSegment(value: 'bar', label: Text('Barra')),
+                      ButtonSegment(value: 'circle', label: Text('Círculo')),
+                    ],
+                    selected: {draft.visualizationType},
+                    onSelectionChanged: (values) {
                       setState(
-                        () => _draft = draft.copyWith(tapSensitivity: n),
+                        () => _draft = draft.copyWith(
+                          visualizationType: values.first,
+                        ),
                       );
-                    }
-                  },
-                ),
-                _numberField(
-                  'Cooldown do tap (ms)',
-                  _controllers['tapCooldownMs']!,
-                  (v) {
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _numberField('Tempo total (s)', _controllers['totalTime']!, (
+                    v,
+                  ) {
                     final n = int.tryParse(v);
                     if (n != null) {
-                      setState(() => _draft = draft.copyWith(tapCooldownMs: n));
+                      setState(() => _draft = draft.copyWith(totalTime: n));
                     }
-                  },
-                ),
-                _numberField(
-                  'Max points (janela)',
-                  _controllers['maxPoints']!,
-                  (v) {
-                    final n = int.tryParse(v);
-                    if (n != null) {
-                      setState(() => _draft = draft.copyWith(maxPoints: n));
-                    }
-                  },
-                ),
-                _numberField('Baseline', _controllers['baseline']!, (v) {
-                  final n = double.tryParse(v);
-                  if (n != null) {
-                    setState(() => _draft = draft.copyWith(baseline: n));
-                  }
-                }),
-                _numberField('Gravity / s', _controllers['gravityPerSecond']!, (
-                  v,
-                ) {
-                  final n = double.tryParse(v);
-                  if (n != null) {
-                    setState(
-                      () => _draft = draft.copyWith(gravityPerSecond: n),
-                    );
-                  }
-                }),
-                _numberField(
-                  'Impulse por tap',
-                  _controllers['impulseStrength']!,
-                  (v) {
+                  }),
+                  _numberField(
+                    'Sensibilidade do tap (0–1 MediaPipe)',
+                    _controllers['tapSensitivity']!,
+                    (v) {
+                      final n = double.tryParse(v);
+                      if (n != null) {
+                        setState(
+                          () => _draft = draft.copyWith(tapSensitivity: n),
+                        );
+                      }
+                    },
+                  ),
+                  _numberField(
+                    'Cooldown do tap (ms)',
+                    _controllers['tapCooldownMs']!,
+                    (v) {
+                      final n = int.tryParse(v);
+                      if (n != null) {
+                        setState(
+                          () => _draft = draft.copyWith(tapCooldownMs: n),
+                        );
+                      }
+                    },
+                  ),
+                  _numberField(
+                    'Max points (janela)',
+                    _controllers['maxPoints']!,
+                    (v) {
+                      final n = int.tryParse(v);
+                      if (n != null) {
+                        setState(() => _draft = draft.copyWith(maxPoints: n));
+                      }
+                    },
+                  ),
+                  _numberField('Baseline', _controllers['baseline']!, (v) {
                     final n = double.tryParse(v);
                     if (n != null) {
-                      setState(
-                        () => _draft = draft.copyWith(impulseStrength: n),
-                      );
+                      setState(() => _draft = draft.copyWith(baseline: n));
                     }
-                  },
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: _saving ? null : _save,
-                  child: _saving
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Guardar'),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: _saving ? null : _restore,
-                  child: const Text('Restaurar defaults'),
-                ),
-                TextButton(
-                  onPressed: () => context.go('/rapid-intro'),
-                  child: const Text('Cancelar'),
-                ),
-              ],
+                  }),
+                  _numberField(
+                    'Gravity / s',
+                    _controllers['gravityPerSecond']!,
+                    (v) {
+                      final n = double.tryParse(v);
+                      if (n != null) {
+                        setState(
+                          () => _draft = draft.copyWith(gravityPerSecond: n),
+                        );
+                      }
+                    },
+                  ),
+                  _numberField(
+                    'Impulse por tap',
+                    _controllers['impulseStrength']!,
+                    (v) {
+                      final n = double.tryParse(v);
+                      if (n != null) {
+                        setState(
+                          () => _draft = draft.copyWith(impulseStrength: n),
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: _saving ? null : _save,
+                    child: _saving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Guardar'),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: _saving ? null : _restore,
+                    child: const Text('Restaurar defaults'),
+                  ),
+                  TextButton(
+                    onPressed: () => context.go('/rapid-intro'),
+                    child: const Text('Cancelar'),
+                  ),
+                ],
+              ),
             ),
           ),
         );

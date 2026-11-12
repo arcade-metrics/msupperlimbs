@@ -6,7 +6,7 @@
 !.env.example
 
 # Python venv / caches
-backend/.venv/
+old/backend/.venv/
 **/__pycache__/
 **/*.pyc
 **/*.db

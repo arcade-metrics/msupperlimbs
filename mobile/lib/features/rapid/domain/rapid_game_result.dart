@@ -1,49 +1,53 @@
-import 'package:msupperlimbs/features/motion/domain/motion_data_contract.dart';
+import 'package:msupperlimbs/features/match/domain/event_timeline.dart';
 
 class RapidGameResult {
   const RapidGameResult({
     required this.tapCount,
     required this.durationSeconds,
+    this.durationMs = 0,
     required this.gameMode,
     required this.visualizationType,
+    this.phaseEvents = const [],
     this.tapEvents = const [],
     this.pulseEvents = const [],
     this.poseSamples = const [],
     this.avgPulseHeight,
     this.maxPulseHeight,
-    this.settingsSnapshot,
     this.screenWidth,
     this.screenHeight,
     this.imageWidth,
     this.imageHeight,
-    this.startedAtMs,
-    this.endedAtMs,
     this.preview,
     this.matchId,
     this.sessionId,
     this.saveError,
+    this.queued = false,
   });
 
   final int tapCount;
   final int durationSeconds;
+
+  /// Tempo jogado medido (fase `playing` → `finished`), em ms.
+  final int durationMs;
   final String gameMode;
   final String visualizationType;
+  final List<Map<String, dynamic>> phaseEvents;
   final List<Map<String, dynamic>> tapEvents;
   final List<Map<String, dynamic>> pulseEvents;
   final List<Map<String, dynamic>> poseSamples;
   final double? avgPulseHeight;
   final double? maxPulseHeight;
-  final Map<String, dynamic>? settingsSnapshot;
   final int? screenWidth;
   final int? screenHeight;
   final int? imageWidth;
   final int? imageHeight;
-  final int? startedAtMs;
-  final int? endedAtMs;
   final Map<String, double>? preview;
   final String? matchId;
   final String? sessionId;
   final String? saveError;
+
+  /// Not sent yet but kept on the device; [saveError] says so.
+  final bool queued;
 
   double get tapsPerSecond =>
       durationSeconds <= 0 ? 0 : tapCount / durationSeconds;
@@ -54,84 +58,44 @@ class RapidGameResult {
     String? matchId,
     String? sessionId,
     String? saveError,
+    bool? queued,
     bool clearSaveError = false,
   }) {
     return RapidGameResult(
       tapCount: tapCount,
       durationSeconds: durationSeconds,
+      durationMs: durationMs,
       gameMode: gameMode,
       visualizationType: visualizationType,
+      phaseEvents: phaseEvents,
       tapEvents: tapEvents,
       pulseEvents: pulseEvents,
       poseSamples: poseSamples,
       avgPulseHeight: avgPulseHeight,
       maxPulseHeight: maxPulseHeight,
-      settingsSnapshot: settingsSnapshot,
       screenWidth: screenWidth,
       screenHeight: screenHeight,
       imageWidth: imageWidth,
       imageHeight: imageHeight,
-      startedAtMs: startedAtMs,
-      endedAtMs: endedAtMs,
       preview: preview,
       matchId: matchId ?? this.matchId,
       sessionId: sessionId ?? this.sessionId,
       saveError: clearSaveError ? null : (saveError ?? this.saveError),
+      queued: queued ?? this.queued,
     );
   }
 
-  Map<String, dynamic> toMatchPayload({String? deviceModel}) {
-    return {
-      'data_contract_version': MotionDataContract.version,
-      if (deviceModel != null) 'device_model': deviceModel,
-      'total_time': durationSeconds,
-      'game_mode': gameMode,
-      'visualization_type': visualizationType,
-      'tap_count': tapCount,
-      'avg_tap_frequency': tapsPerSecond,
-      'avg_pulse_height': avgPulseHeight,
-      'max_pulse_height': maxPulseHeight,
-      'settings_snapshot': settingsSnapshot,
-      'screen_width': screenWidth,
-      'screen_height': screenHeight,
-      'image_width': imageWidth,
-      'image_height': imageHeight,
-      'started_at_ms': startedAtMs,
-      'ended_at_ms': endedAtMs,
-      'preview': preview,
-      'is_valid_match': tapCount > 0,
-      'tap_events': tapEvents,
-      'pulse_events': pulseEvents,
-      'pose_samples': poseSamples,
-    };
-  }
-}
+  /// Phase, tap and pulse_tick events on one timeline, ordered by
+  /// `offsetMs` (events at the same offset keep their order).
+  List<Map<String, dynamic>> get events =>
+      byOffset([phaseEvents, tapEvents, pulseEvents]);
 
-class RapidMatchSaveResponse {
-  const RapidMatchSaveResponse({
-    required this.id,
-    required this.sessionId,
-    required this.tapCount,
-    required this.tapChunkCount,
-    required this.pulseChunkCount,
-    required this.poseChunkCount,
-  });
-
-  final String id;
-  final String sessionId;
-  final int tapCount;
-  final int tapChunkCount;
-  final int pulseChunkCount;
-  final int poseChunkCount;
-
-  factory RapidMatchSaveResponse.fromJson(Map<String, dynamic> json) {
-    return RapidMatchSaveResponse(
-      id: json['id'] as String,
-      sessionId: json['session_id'] as String,
-      tapCount: json['tap_count'] as int? ?? 0,
-      tapChunkCount: json['tap_chunk_count'] as int? ?? 0,
-      pulseChunkCount: json['pulse_chunk_count'] as int? ?? 0,
-      poseChunkCount: json['pose_chunk_count'] as int? ?? 0,
-    );
-  }
+  /// Body of `POST /msupperlimbs-rapid/matches/{id}/metrics`.
+  Map<String, dynamic> toMetricsJson() => {
+    'tapCount': tapCount,
+    'avgTapFrequency': tapsPerSecond,
+    'avgPulseHeight': ?avgPulseHeight,
+    'maxPulseHeight': ?maxPulseHeight,
+    'isValidMatch': tapCount > 0,
+  };
 }

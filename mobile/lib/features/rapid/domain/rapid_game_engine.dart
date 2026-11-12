@@ -1,4 +1,5 @@
 import 'package:msupperlimbs/features/motion/domain/landmark_point.dart';
+import 'package:msupperlimbs/features/motion/domain/motion_data_contract.dart';
 import 'package:msupperlimbs/features/motion/domain/session_clock.dart';
 import 'package:msupperlimbs/features/rapid/data/models/rapid_settings.dart';
 import 'package:msupperlimbs/features/rapid/domain/motion/finger_tap_detector.dart';
@@ -21,26 +22,16 @@ class RapidGameEngine {
        _pulse = RapidMotionFactory.pulseController(settings),
        remainingSeconds = settings.totalTime,
        totalSeconds = settings.totalTime {
+    // O impulso não vira evento: o `tap` já leva a altura antes e depois.
     _pulse.onImpulse = (before, after, strength) {
       if (phase != RapidGamePhase.playing) return;
-      final at = _impulseAt ?? clock.now();
-      _pulseEvents.add({
-        't': at.toUtc().millisecondsSinceEpoch,
-        'pulseHeight': after,
-        'pulseState': _pulse.state.name,
-        'eventType': 'impulse',
-        'additionalData': {
-          'heightBefore': before,
-          'heightAfter': after,
-          'impulseStrength': strength,
-        },
-      });
       _maxPulseHeight = _maxPulseHeight == null
           ? after
           : (_maxPulseHeight! > after ? _maxPulseHeight : after);
       _pulseHeightSum += after;
       _pulseHeightSamples += 1;
     };
+    _phaseEvents.add(phaseEvent(offsetMs: clock.offsetMs(), to: phase.name));
   }
 
   final RapidSettings _settings;
@@ -67,9 +58,11 @@ class RapidGameEngine {
   DateTime? _holdStartedAt;
   DateTime? _lastPhysicsAt;
   DateTime? _lastHoldSampleAt;
-  DateTime? _impulseAt;
   int _handFrameCounter = 0;
+  int? _playingStartedMs;
+  int? _finishedMs;
 
+  final List<Map<String, dynamic>> _phaseEvents = [];
   final List<Map<String, dynamic>> _tapEvents = [];
   final List<Map<String, dynamic>> _pulseEvents = [];
   final List<Map<String, dynamic>> _poseSamples = [];
@@ -81,6 +74,13 @@ class RapidGameEngine {
   PulseLineController get pulse => _pulse;
   RapidSettings get settings => _settings;
 
+  /// Tempo jogado de verdade: da fase `playing` até `finished` (ou agora).
+  int get playedMs {
+    final started = _playingStartedMs;
+    if (started == null) return 0;
+    return (_finishedMs ?? clock.offsetMs()) - started;
+  }
+
   RapidGameResult get result {
     final avgPulse = _pulseHeightSamples == 0
         ? null
@@ -88,25 +88,32 @@ class RapidGameEngine {
     return RapidGameResult(
       tapCount: tapCount,
       durationSeconds: totalSeconds,
+      durationMs: playedMs,
       gameMode: _settings.gameMode,
       visualizationType: _settings.visualizationType,
+      phaseEvents: List.unmodifiable(_phaseEvents),
       tapEvents: List.unmodifiable(_tapEvents),
       pulseEvents: List.unmodifiable(_pulseEvents),
       poseSamples: List.unmodifiable(_poseSamples),
       avgPulseHeight: avgPulse,
       maxPulseHeight: _maxPulseHeight,
-      settingsSnapshot: _settings.toUpdateJson(),
       screenWidth: screenWidth,
       screenHeight: screenHeight,
       imageWidth: imageWidth,
       imageHeight: imageHeight,
-      startedAtMs: clock.startedAt.millisecondsSinceEpoch,
-      endedAtMs: clock.nowMs(),
       preview: preview,
     );
   }
 
   void notify() => _onChanged?.call();
+
+  void _setPhase(RapidGamePhase next, DateTime at) {
+    if (next == phase) return;
+    _phaseEvents.add(
+      phaseEvent(offsetMs: clock.offsetMs(at), from: phase.name, to: next.name),
+    );
+    phase = next;
+  }
 
   void onHands(List<LandmarkPoint> hands, DateTime now) {
     handPresent = hands.isNotEmpty;
@@ -118,7 +125,7 @@ class RapidGameEngine {
     switch (phase) {
       case RapidGamePhase.waitingHand:
         if (handPresent) {
-          phase = RapidGamePhase.holdingHand;
+          _setPhase(RapidGamePhase.holdingHand, now);
           _holdStartedAt = now;
           _lastHoldSampleAt = now;
           notify();
@@ -126,12 +133,12 @@ class RapidGameEngine {
       case RapidGamePhase.holdingHand:
         _lastHoldSampleAt = now;
         if (!handPresent) {
-          phase = RapidGamePhase.waitingHand;
+          _setPhase(RapidGamePhase.waitingHand, now);
           _holdStartedAt = null;
           notify();
         } else if (_holdStartedAt != null &&
             now.difference(_holdStartedAt!) >= handHoldDuration) {
-          phase = RapidGamePhase.countdown;
+          _setPhase(RapidGamePhase.countdown, now);
           _holdStartedAt = null;
           notify();
         } else {
@@ -147,7 +154,10 @@ class RapidGameEngine {
 
   void beginPlaying() {
     if (phase != RapidGamePhase.countdown) return;
-    phase = RapidGamePhase.playing;
+    final now = clock.now();
+    _setPhase(RapidGamePhase.playing, now);
+    _playingStartedMs = clock.offsetMs(now);
+    _finishedMs = null;
     remainingSeconds = totalSeconds;
     tapCount = 0;
     _tap.reset();
@@ -185,10 +195,10 @@ class RapidGameEngine {
     // Subsample pulse ticks for storage (~3 Hz when fixedDt≈1/30).
     if (_pulseHeightSamples % 10 == 0) {
       _pulseEvents.add({
-        't': now.toUtc().millisecondsSinceEpoch,
+        'offsetMs': clock.offsetMs(now),
+        'eventType': 'pulse_tick',
         'pulseHeight': y,
         'pulseState': _pulse.state.name,
-        'eventType': 'tick',
       });
     }
     notify();
@@ -199,7 +209,9 @@ class RapidGameEngine {
     remainingSeconds -= 1;
     if (remainingSeconds <= 0) {
       remainingSeconds = 0;
-      phase = RapidGamePhase.finished;
+      final now = clock.now();
+      _setPhase(RapidGamePhase.finished, now);
+      _finishedMs = clock.offsetMs(now);
     }
     notify();
   }
@@ -215,10 +227,13 @@ class RapidGameEngine {
 
   void _samplePose(List<LandmarkPoint> hands, DateTime now) {
     _poseSamples.add({
-      't': now.toUtc().millisecondsSinceEpoch,
+      'offsetMs': clock.offsetMs(now),
       'phase': phase.name,
-      'pose': const <Map<String, dynamic>>[],
-      'hands': [for (final p in hands) p.toKinematicJson()],
+      // The API requires `hand`; a missing index is hand 0, as for taps.
+      'hands': [
+        for (final p in hands)
+          {...p.toKinematicJson(), 'hand': p.handIndex ?? 0},
+      ],
     });
   }
 
@@ -228,29 +243,22 @@ class RapidGameEngine {
       byHand.putIfAbsent(p.handIndex ?? 0, () => []).add(p);
     }
 
-    final mode = _settings.gameMode;
     final entries = byHand.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
-
-    Iterable<MapEntry<int, List<LandmarkPoint>>> selected = entries;
-    if (mode != 'bothHands' && entries.isNotEmpty) {
-      selected = [entries.first];
-    }
+    final selected = entries.take(1);
 
     for (final entry in selected) {
       final before = _pulse.currentY;
       if (_tap.updateFromPoints(entry.value, now)) {
         tapCount += 1;
-        _impulseAt = now;
         _pulse.impulse();
-        _impulseAt = null;
         _tapEvents.add({
-          't': now.toUtc().millisecondsSinceEpoch,
-          'tappedFinger': 'tip',
+          'offsetMs': clock.offsetMs(now),
+          'eventType': 'tap',
           'handIndex': entry.key,
+          'finger': 'tip',
           'pulseHeightBefore': before,
           'pulseHeightAfter': _pulse.currentY,
-          'tapSensitivity': _settings.tapSensitivity,
         });
         notify();
         break;

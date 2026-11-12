@@ -7,7 +7,7 @@ import 'package:msupperlimbs/features/motion/domain/session_clock.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
 /// Accelerometer (+ optional gyro) feeder for [PregameTelemetryBuffer].
-/// Uses the buffer clock so sensor rows share `t` with pose/events.
+/// Uses the run clock so sensor rows share `offsetMs` with pose/events.
 class PregameSensorSampler {
   PregameSensorSampler(
     this._buffer, {
