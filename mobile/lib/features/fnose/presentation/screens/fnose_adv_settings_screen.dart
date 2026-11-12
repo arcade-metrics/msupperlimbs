@@ -117,67 +117,70 @@ class _FnoseAdvSettingsScreenState
         return Scaffold(
           appBar: AppBar(title: Text(l10n.fnose_adv_settings_title)),
           body: SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                for (final section in FnoseAdvSection.values) ...[
-                  Text(
-                    section.label,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+            child: Scrollbar(
+              thumbVisibility: true,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  for (final section in FnoseAdvSection.values) ...[
+                    Text(
+                      section.label,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
+                    const SizedBox(height: 8),
+                    for (final field in fnoseAdvCatalog.where(
+                      (f) => f.section == section,
+                    )) ...[
+                      _numberField(
+                        label: field.label,
+                        helper:
+                            '${field.description}${field.unit.isEmpty ? '' : ' Unidade: ${field.unit}.'}\nEspaço: ${field.space.label} • Chave: ${field.key} • Padrão: ${field.defaultValue}',
+                        controller: _controllers.putIfAbsent(
+                          field.key,
+                          () => TextEditingController(
+                            text:
+                                '${draft.data[field.key] ?? field.defaultValue}',
+                          ),
+                        ),
+                        isInt: field.isInteger,
+                        onChanged: (v) {
+                          final current = _draft;
+                          if (current == null) return;
+                          final n = field.isInteger
+                              ? int.tryParse(v)
+                              : double.tryParse(v);
+                          if (n == null) return;
+                          setState(
+                            () => _draft = current.withValue(field.key, n),
+                          );
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                  ],
+                  FilledButton(
+                    onPressed: _saving ? null : _save,
+                    child: _saving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(l10n.common_save),
                   ),
                   const SizedBox(height: 8),
-                  for (final field in fnoseAdvCatalog.where(
-                    (f) => f.section == section,
-                  )) ...[
-                    _numberField(
-                      label: field.label,
-                      helper:
-                          '${field.description}${field.unit.isEmpty ? '' : ' Unidade: ${field.unit}.'}\nEspaço: ${field.space.label} • Chave: ${field.key} • Padrão: ${field.defaultValue}',
-                      controller: _controllers.putIfAbsent(
-                        field.key,
-                        () => TextEditingController(
-                          text:
-                              '${draft.data[field.key] ?? field.defaultValue}',
-                        ),
-                      ),
-                      isInt: field.isInteger,
-                      onChanged: (v) {
-                        final current = _draft;
-                        if (current == null) return;
-                        final n = field.isInteger
-                            ? int.tryParse(v)
-                            : double.tryParse(v);
-                        if (n == null) return;
-                        setState(
-                          () => _draft = current.withValue(field.key, n),
-                        );
-                      },
-                    ),
-                  ],
-                  const SizedBox(height: 16),
+                  OutlinedButton(
+                    onPressed: _saving ? null : _restore,
+                    child: Text(l10n.restoreDefaults),
+                  ),
+                  TextButton(
+                    onPressed: () => context.go('/fnose-settings'),
+                    child: Text(l10n.common_back),
+                  ),
                 ],
-                FilledButton(
-                  onPressed: _saving ? null : _save,
-                  child: _saving
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(l10n.common_save),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: _saving ? null : _restore,
-                  child: Text(l10n.restoreDefaults),
-                ),
-                TextButton(
-                  onPressed: () => context.go('/fnose-settings'),
-                  child: Text(l10n.common_back),
-                ),
-              ],
+              ),
             ),
           ),
         );
