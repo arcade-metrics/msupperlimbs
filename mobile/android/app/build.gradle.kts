@@ -27,6 +27,15 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("debug")
+            // R8 strips/renames protobuf-lite members that MediaPipe reads by
+            // reflection (INIT_ERROR "Field platform_ not found", then silent
+            // crashes on the first frame). Keep release identical to debug.
+            isMinifyEnabled = false
+            isShrinkResources = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

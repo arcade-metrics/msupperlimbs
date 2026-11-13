@@ -32,7 +32,7 @@ class MainActivity : FlutterActivity() {
                                 handDetector.initialize()
                             }
                             result.success(true)
-                        } catch (e: Exception) {
+                        } catch (e: Throwable) {
                             result.error("INIT_ERROR", e.message, null)
                         }
                     }
@@ -55,7 +55,7 @@ class MainActivity : FlutterActivity() {
                                 emptyList()
                             }
                             result.success(mapOf("pose" to pose, "hands" to hands))
-                        } catch (e: Exception) {
+                        } catch (e: Throwable) {
                             result.error("FRAME_ERROR", e.message, null)
                         }
                     }
@@ -68,7 +68,7 @@ class MainActivity : FlutterActivity() {
                                     return@setMethodCallHandler
                                 }
                             result.success(serializePose(bitmap))
-                        } catch (e: Exception) {
+                        } catch (e: Throwable) {
                             result.error("POSE_ERROR", e.message, null)
                         }
                     }
@@ -81,7 +81,7 @@ class MainActivity : FlutterActivity() {
                                     return@setMethodCallHandler
                                 }
                             result.success(handDetector.detectHandLandmarks(bitmap))
-                        } catch (e: Exception) {
+                        } catch (e: Throwable) {
                             result.error("HANDS_ERROR", e.message, null)
                         }
                     }
